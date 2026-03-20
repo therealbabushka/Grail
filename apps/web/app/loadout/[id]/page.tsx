@@ -170,18 +170,18 @@ export default async function PublicLoadoutPage({
                           {slot.imageUrl ? (
                             <img
                               src={slot.imageUrl}
-                              alt={slot.skinName ?? SLOT_LABELS[key]}
+                              alt={slot.skinName ?? SLOT_LABELS[key] ?? ""}
                               className="h-14 w-auto max-w-full object-contain"
                             />
                           ) : (
                             <div className="flex h-14 w-14 items-center justify-center rounded border border-border bg-background/50">
                               <span className="font-mono text-[10px] text-text-muted">
-                                {SLOT_LABELS[key].slice(0, 6)}
+                                {(SLOT_LABELS[key] ?? "").slice(0, 6)}
                               </span>
                             </div>
                           )}
                           <span className="max-w-full line-clamp-1 font-mono text-[10px] text-foreground">
-                            {slot.skinName ?? SLOT_LABELS[key]}
+                            {slot.skinName ?? SLOT_LABELS[key] ?? ""}
                           </span>
                           {slot.floatValue != null && (
                             <span className="font-mono text-[9px] tabular-nums text-text-muted">
@@ -205,18 +205,18 @@ export default async function PublicLoadoutPage({
                           {slot.imageUrl ? (
                             <img
                               src={slot.imageUrl}
-                              alt={slot.skinName ?? SLOT_LABELS[key]}
+                              alt={slot.skinName ?? SLOT_LABELS[key] ?? ""}
                               className="h-14 w-auto max-w-full object-contain"
                             />
                           ) : (
                             <div className="flex h-14 w-14 items-center justify-center rounded border border-border bg-background/50">
                               <span className="font-mono text-[10px] text-text-muted">
-                                {SLOT_LABELS[key].slice(0, 6)}
+                                {(SLOT_LABELS[key] ?? "").slice(0, 6)}
                               </span>
                             </div>
                           )}
                           <span className="max-w-full line-clamp-1 font-mono text-[10px] text-foreground">
-                            {slot.skinName ?? SLOT_LABELS[key]}
+                            {slot.skinName ?? SLOT_LABELS[key] ?? ""}
                           </span>
                           {slot.floatValue != null && (
                             <span className="font-mono text-[9px] tabular-nums text-text-muted">

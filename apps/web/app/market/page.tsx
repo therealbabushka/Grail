@@ -311,7 +311,8 @@ export default function MarketPage() {
 
   useEffect(() => {
     if (!focusedTypeForWeapons && typeOptions.length > 0) {
-      setFocusedTypeForWeapons(typeOptions[0])
+      const first = typeOptions[0]
+      if (first) setFocusedTypeForWeapons(first)
     }
   }, [focusedTypeForWeapons, typeOptions])
 
