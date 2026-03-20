@@ -79,7 +79,8 @@ export async function middleware(request: NextRequest) {
   if (!user) {
     const redirectUrl = request.nextUrl.clone()
     redirectUrl.pathname = "/login"
-    redirectUrl.searchParams.set("next", pathname)
+    // Always return to homepage after login (per product requirement).
+    redirectUrl.searchParams.set("next", "/")
     return NextResponse.redirect(redirectUrl)
   }
 

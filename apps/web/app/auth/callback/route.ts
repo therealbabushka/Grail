@@ -4,11 +4,9 @@ import { createServerClient } from "@supabase/ssr"
 // Ensure Next doesn't try to optimize this route in a way that breaks auth cookie handling.
 export const dynamic = "force-dynamic"
 
-function getSafeNextTarget(next: string | null | undefined) {
-  if (!next) return "/"
-  // Avoid open redirects: only allow relative paths within this app.
-  if (!next.startsWith("/")) return "/dashboard"
-  return next
+function getSafeNextTarget(_next: string | null | undefined) {
+  // Per requirement: always go to homepage after successful auth.
+  return "/"
 }
 
 export async function GET(request: NextRequest) {
