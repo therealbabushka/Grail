@@ -25,7 +25,7 @@
 ### Constraints
 - **Timeline:** 5 full-time days (Tue–Sun).
 - **Tech stack:** Fixed — Next.js 16, Supabase, shadcn/ui, Tailwind CSS, Vercel.
-- **Auth:** Disabled for now (no login).
+- **Auth:** Supabase Auth with Google OAuth (login enabled for protected routes).
 - **Currency:** Multi-currency display (USD, EUR, GBP, CNY); stored values never mutated.
 - **Item data:** Static database (~3500 CS2 items) scraped from csgostash.com; no live API.
 - **Images:** URL paste / Steam CDN only; no Supabase storage for MVP.

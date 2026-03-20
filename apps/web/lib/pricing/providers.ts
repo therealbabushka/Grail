@@ -1,4 +1,4 @@
-import { bitskinsV1Get } from "@/lib/pricing/bitskins-v1"
+import { bitskinsV2Get } from "@/lib/pricing/bitskins-v2"
 
 type MoneyLike = unknown
 
@@ -272,9 +272,9 @@ function bitskinsSalesToSeries(sales: any[]): PricePoint[] {
 }
 
 /**
- * BitSkins classic API (v1): requires BITSKINS_API_KEY + BITSKINS_API_SECRET.
- * The secret is the 2FA TOTP seed shown when you enable 2FA (base32); each request sends a fresh `code`.
- * @see https://bitskins.com/docs/api#api-introduction
+ * BitSkins API (v2): requires BITSKINS_API_KEY + BITSKINS_API_SECRET.
+ * The secret is the 2FA TOTP seed shown when you enable 2FA (base32);
+ * each request sends a fresh `code`.
  */
 export async function fetchBitskinsPricing(itemName: string, apiKey?: string, apiSecret?: string) {
   const key = apiKey ?? process.env.BITSKINS_API_KEY
@@ -296,7 +296,7 @@ export async function fetchBitskinsPricing(itemName: string, apiKey?: string, ap
     }
   }
 
-  const marketRes = await bitskinsV1Get("get_price_data_for_items_on_sale", key, secret, {
+  const marketRes = await bitskinsV2Get("get_price_data_for_items_on_sale", key, secret, {
     names: itemName,
   })
 
@@ -307,7 +307,7 @@ export async function fetchBitskinsPricing(itemName: string, apiKey?: string, ap
   const salesPages: any[] = []
   const rawPages: unknown[] = []
   for (let page = 1; page <= 5; page++) {
-    const salesRes = await bitskinsV1Get("get_sales_info", key, secret, {
+    const salesRes = await bitskinsV2Get("get_sales_info", key, secret, {
       market_hash_name: itemName,
       page,
     })
@@ -330,7 +330,7 @@ export async function fetchBitskinsPricing(itemName: string, apiKey?: string, ap
     volume24h,
     series,
     raw: {
-      api: "bitskins_v1",
+      api: "bitskins_v2",
       market: marketRes.json,
       sales_pages: rawPages,
     },

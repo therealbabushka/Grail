@@ -28,11 +28,11 @@
 ### Day 1 Remaining (Immediate Priorities)
 - [x] Create Supabase project (via MCP).
 - [x] Apply database schema (tables, triggers, RLS, indexes) via migration.
-- [ ] Re-enable auth (currently disabled; Google OAuth setup deferred).
+- [x] Re-enable auth (Google OAuth).
 - [x] Setup `@supabase/ssr` client + `/auth/callback` route + middleware.
 - [ ] Build base layout with horizontal top tabs navigation (Home icon + 3 pillar tabs).
 - [ ] Setup dark theme with full design system tokens.
-- [ ] Create profile auto-creation trigger + user profile page.
+- [x] Create profile auto-creation trigger (profile rows generated on sign-in); persist profile settings UI next.
 - [ ] Build Market-first Landing (`/`) + Market (`/market`) experience.
 - [ ] Ensure middleware treats `/` + `/market*` as public and `/dashboard` as protected (MVP auth flow).
 
@@ -40,7 +40,7 @@
 - None — all product and technical decisions are resolved in `SPEC.md` § Resolved Questions.
 
 ### Blockers
-- Auth is intentionally disabled for now; Google OAuth configuration in Supabase dashboard is deferred.
+- Google OAuth configuration in the Supabase dashboard still must be completed/verified.
 
 ### Recent Learnings
 - `SPEC.md` is the authoritative source of truth. Memory Bank distills it for quick session loading.

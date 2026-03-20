@@ -767,14 +767,11 @@ export default function MarketPage() {
               </div>
 
               {activeSidebarSection && (
-                <div className="absolute top-0 left-[calc(100%+8px)] z-[70] min-h-[360px] w-[300px] border border-border bg-surface p-2 shadow-2xl">
+                <div className="absolute top-0 left-[calc(100%+8px)] z-[70] h-fit w-[300px] border border-border bg-surface p-2 shadow-2xl">
                   {activeSidebarSection === "type" ? (
                     <div className="space-y-1 overflow-auto border border-border bg-background/50 p-2">
                       <div className="flex items-center justify-between font-mono text-[10px] uppercase text-text-secondary">
                         <span>Type</span>
-                        <Button type="button" size="xs" variant="outline" onClick={() => setActiveSidebarSection(null)}>
-                          Close
-                        </Button>
                       </div>
                       <p className="text-[10px] text-text-muted">Click a type to open its weapon panel.</p>
                         {typeOptions.map((t) => (
@@ -812,26 +809,21 @@ export default function MarketPage() {
                 </div>
               )}
               {activeSidebarSection === "type" && typeWeaponsPaneOpen && (
-                <div className="absolute top-0 left-[calc(100%+316px)] z-[75] min-h-[360px] w-[300px] border border-border bg-surface p-2 shadow-2xl">
+                <div className="absolute top-0 left-[calc(100%+316px)] z-[75] h-fit w-[300px] border border-border bg-surface p-2 shadow-2xl">
                   <div className="space-y-1 overflow-auto border border-border bg-background/50 p-2">
                     <div className="flex items-center justify-between font-mono text-[10px] uppercase text-text-secondary">
                       <span>{focusedTypeForWeapons || "Weapon"}</span>
-                      <div className="flex items-center gap-1">
-                        {focusedTypeForWeapons && (
-                          <Button
-                            type="button"
-                            size="xs"
-                            variant={types.includes(focusedTypeForWeapons) ? "default" : "outline"}
-                            className="h-6 px-2 text-[10px]"
-                            onClick={() => setTypes((prev) => toggleStringValue(prev, focusedTypeForWeapons))}
-                          >
-                            {types.includes(focusedTypeForWeapons) ? "Type ✓" : "Add type"}
-                          </Button>
-                        )}
-                        <Button type="button" size="xs" variant="outline" onClick={() => setTypeWeaponsPaneOpen(false)}>
-                          Close
+                      {focusedTypeForWeapons ? (
+                        <Button
+                          type="button"
+                          size="xs"
+                          variant={types.includes(focusedTypeForWeapons) ? "default" : "outline"}
+                          className="h-6 px-2 text-[10px]"
+                          onClick={() => setTypes((prev) => toggleStringValue(prev, focusedTypeForWeapons))}
+                        >
+                          {types.includes(focusedTypeForWeapons) ? "Type ✓" : "Add type"}
                         </Button>
-                      </div>
+                      ) : null}
                     </div>
                     {(weaponsByType.get(focusedTypeForWeapons) ?? []).map((w) => (
                       <button

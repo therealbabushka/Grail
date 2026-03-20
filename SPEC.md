@@ -86,10 +86,10 @@ Grail/
 /                          → Home / Command Center Dashboard (requires auth)
 /login                     → Login page (Google OAuth, public)
 /auth/callback             → OAuth callback handler (exchanges code for session, public)
-/trade-links               → Trade Links pillar (requires auth)
+/float-flip                → Float Flip pillar (requires auth)
 /loadout                   → Loadout Canvas — user's loadout list (requires auth)
 /loadout/[id]              → Public shareable loadout view (public, no auth needed)
-/watchlist                 → Watchlist pillar (requires auth)
+/sniper                    → Skin Sniper pillar (requires auth)
 /profile                   → Profile settings (requires auth)
 ```
 
@@ -104,13 +104,13 @@ apps/web/app/
 │   └── callback/
 │       └── route.ts            # /auth/callback (OAuth code → session exchange)
 ├── float-flip/
-│   └── page.tsx                # /trade-links
+│   └── page.tsx                # /float-flip
 ├── loadout/
 │   ├── page.tsx                # /loadout
 │   └── [id]/
 │       └── page.tsx            # /loadout/[id] (public)
 ├── sniper/
-│   └── page.tsx                # /watchlist
+│   └── page.tsx                # /sniper
 └── profile/
     └── page.tsx                # /profile
 ```
@@ -118,7 +118,7 @@ apps/web/app/
 **Auth & Route Protection:**
 - **Middleware** (`apps/web/middleware.ts`): Protect all routes using `@supabase/ssr`.
 - **Public routes** (bypass middleware): `/login`, `/auth/callback`, `/loadout/[id]`.
-- **Protected routes** (redirect to `/login` if unauthenticated): `/`, `/trade-links`, `/loadout`, `/watchlist`, `/profile`.
+- **Protected routes** (redirect to `/login` if unauthenticated): `/`, `/float-flip`, `/loadout`, `/sniper`, `/profile`.
 
 ---
 
@@ -904,6 +904,7 @@ Google OAuth credentials (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`) are config
 | Image hosting     | URL paste only (no Supabase storage for MVP)                                                                                                                |
 | Currency          | Multi-currency with free exchange rate API (USD, EUR, GBP, CNY)                                                                                             |
 | Steam integration | Static item database scraped from csgostash.com, no live API                                                                                                |
+| BitSkins pricing API | Live pricing provider migrated from API v1 to API v2                                                                                                                         |
 | Marketplace links | Auto-generated from skin name + user custom overrides                                                                                                       |
 | Headline font     | JetBrains Mono (replaced Stratum2)                                                                                                                          |
 | Navigation style  | Horizontal top tabs + Home Dashboard at `/`                                                                                                                 |

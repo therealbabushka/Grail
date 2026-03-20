@@ -8,7 +8,7 @@
 | UI Components | shadcn/ui + Radix UI |
 | Styling | Tailwind CSS |
 | Database | Supabase (PostgreSQL) |
-| Auth | Disabled for now (no login) |
+| Auth | Supabase Auth with Google OAuth |
 | Deployment | Vercel |
 | Analytics | @vercel/analytics + @vercel/speed-insights |
 | Toasts | shadcn Sonner |
@@ -33,11 +33,10 @@
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL | Client + Server |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonymous key | Client + Server |
 | `SUPABASE_SERVICE_ROLE_KEY` | Admin access (seeding scripts only) | Server only |
-| `BITSKINS_API_KEY` | BitSkins classic API v1 key | Server only (`apps/web`) |
+| `BITSKINS_API_KEY` | BitSkins API key (v2 live pricing) | Server only (`apps/web`) |
 | `BITSKINS_API_SECRET` | BitSkins 2FA TOTP seed (base32) for per-request `code` | Server only (`apps/web`) |
 
 - Google OAuth credentials (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`) are configured directly in the Supabase dashboard, not in application code.
-  - Note: auth is currently disabled in app code.
 
 ### Build & Deployment
 - Turborepo build pipelines (`turbo.json`).

@@ -18,7 +18,8 @@ All key decisions are resolved and locked. Canonical source: `SPEC.md` § Resolv
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | Tech stack | Next.js 16, TypeScript, Supabase, Tailwind, shadcn/ui, Radix UI | Battle-tested, well-supported, minimal infrastructure friction |
-| Auth | Disabled for now (no login) | Unblocks build/UX work before provider setup |
+| BitSkins pricing provider | Migrated from API v1 to API v2 | Keeps live multi-market snapshots/candles aligned with the preferred BitSkins API version |
+| Auth | Supabase Auth with Google OAuth enabled | Protected flows rely on per-user RLS isolation |
 | Deployment | Vercel (no custom domain for MVP) | Zero-config Next.js hosting |
 | Profile creation | Auto-created via DB trigger on `auth.users` INSERT | No separate signup step needed |
 | Data fetching | RSC for reads, Server Actions for writes, optimistic client updates | Leverages Next.js 16 App Router patterns |

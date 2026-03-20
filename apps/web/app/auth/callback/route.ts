@@ -1,6 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { createServerClient } from "@supabase/ssr"
 
+// Ensure Next doesn't try to optimize this route in a way that breaks auth cookie handling.
+export const dynamic = "force-dynamic"
+
 function getSafeNextTarget(next: string | null | undefined) {
   if (!next) return "/dashboard"
   // Avoid open redirects: only allow relative paths within this app.
@@ -24,7 +27,7 @@ export async function GET(request: NextRequest) {
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   const redirectTo = new URL(next, request.url)
-  const res = NextResponse.redirect(redirectTo)
+  const res = NextResponse.redirect(redirectTo.toString())
 
   if (!url || !anonKey) {
     redirectTo.pathname = "/login"

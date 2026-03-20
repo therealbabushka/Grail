@@ -38,7 +38,7 @@
 - None tracked yet at this stage.
 
 ### Backlog (Full Sprint)
-- **Day 1 remaining:** Re-enable auth (Google OAuth setup deferred), base layout, navigation.
+- **Day 1 remaining:** Base layout, navigation.
 - **Day 2:** Trade CRUD server actions, trade form with validation, wear selector, profit/ROI logic, trade history with filtering, career profit counter, metrics, CSV export.
 - **Day 3:** CT/T weapon grid, slot components, image URL input + preview, 3D tilt hover, rarity glow, save/load loadouts, multiple loadout management, shareable public links.
 - **Day 4:** Target CRUD, target cards, acquired stamp animation, status toggle, marketplace quick links, status filtering, notes field, cross-pillar (Watchlist → Trades, Loadouts → Watchlist).
