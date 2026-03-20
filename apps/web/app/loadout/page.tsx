@@ -24,7 +24,7 @@ import { CaretDown } from "@phosphor-icons/react"
 import type { Json } from "@/lib/supabase/database.types"
 import { createClient as createBrowserClient } from "@/lib/supabase/browser"
 
-import { AuthRequiredBanner } from "@/components/auth-required-banner"
+import { AuthGate } from "@/components/auth-gate"
 
 const DEMO_STORAGE_KEY = "grail.demo.loadouts.v2"
 
@@ -709,11 +709,9 @@ export default function LoadoutPage() {
   }
 
   return (
-    <main className="min-h-screen bg-background px-6 py-10 text-foreground">
-      <div className="mx-auto max-w-6xl space-y-6">
-        <AuthRequiredBanner
-          subtitle="Sign in to sync your loadouts to your account. While signed out, you can still build in demo mode."
-        />
+    <AuthGate subtitle="Login to proceed">
+      <main className="min-h-screen bg-background px-6 py-10 text-foreground">
+        <div className="mx-auto max-w-6xl space-y-6">
         <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <h1 className="font-mono text-2xl font-bold tracking-tight">Loadouts</h1>
@@ -1043,5 +1041,6 @@ export default function LoadoutPage() {
         </div>
       )}
     </main>
+    </AuthGate>
   )
 }

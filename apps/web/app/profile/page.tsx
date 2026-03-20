@@ -12,7 +12,7 @@ import {
 import type { Currency } from "@/lib/demo-seed"
 import { demoActions, useDemoStore } from "@/lib/prototype-store"
 
-import { AuthRequiredBanner } from "@/components/auth-required-banner"
+import { AuthGate } from "@/components/auth-gate"
 
 const CURRENCIES: Currency[] = ["USD", "EUR", "GBP", "CNY"]
 
@@ -21,11 +21,9 @@ export default function ProfilePage() {
   const actions = demoActions()
 
   return (
-    <main className="min-h-screen bg-background px-6 py-10 text-foreground">
-      <div className="mx-auto max-w-xl space-y-6">
-        <AuthRequiredBanner
-          subtitle="Sign in to persist your settings to your account. While signed out, profile settings are stored in demo/local state."
-        />
+    <AuthGate subtitle="Login to proceed">
+      <main className="min-h-screen bg-background px-6 py-10 text-foreground">
+        <div className="mx-auto max-w-xl space-y-6">
         <header>
           <div className="inline-flex items-center gap-2 rounded-none border border-border bg-background/40 px-3 py-2 backdrop-blur">
             <span className="inline-block size-1.5 rounded-full bg-info" aria-hidden />
@@ -81,7 +79,8 @@ export default function ProfilePage() {
             </Button>
           </CardContent>
         </Card>
-      </div>
-    </main>
+        </div>
+      </main>
+    </AuthGate>
   )
 }
