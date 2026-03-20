@@ -23,6 +23,8 @@ import { Input } from "@workspace/ui/components/input"
 import type { Trade, Wear, Variant, Currency, TradeStatus } from "@/lib/demo-seed"
 import { demoActions, computeTradeStats, formatMoney, useDemoStore } from "@/lib/prototype-store"
 
+import { AuthRequiredBanner } from "@/components/auth-required-banner"
+
 const WEARS: Wear[] = ["FN", "MW", "FT", "WW", "BS"]
 const VARIANTS: Variant[] = ["none", "stattrak", "souvenir"]
 const CURRENCIES: Currency[] = ["USD", "EUR", "GBP", "CNY"]
@@ -272,6 +274,9 @@ export default function FloatFlipPage() {
   return (
     <main className="min-h-screen bg-background px-6 py-10 text-foreground">
       <div className="mx-auto max-w-6xl space-y-6">
+        <AuthRequiredBanner
+          subtitle="Sign in to save trades and view your portfolio from your account. While signed out, this page runs in demo mode."
+        />
         <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <h1 className="font-mono text-2xl font-bold tracking-tight">

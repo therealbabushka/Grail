@@ -15,6 +15,8 @@ import {
 
 import { computeTradeStats, formatMoney, useDemoStore } from "@/lib/prototype-store"
 
+import { AuthRequiredBanner } from "@/components/auth-required-banner"
+
 export default function DashboardPage() {
   const { profile, trades, loadouts, targets } = useDemoStore()
   const stats = computeTradeStats(trades)
@@ -65,6 +67,9 @@ export default function DashboardPage() {
   return (
     <main className="min-h-screen bg-background px-6 py-10 text-foreground">
       <div className="mx-auto flex max-w-6xl flex-col gap-10">
+        <AuthRequiredBanner
+          subtitle="Sign in to sync your dashboard data to your account. While signed out, you’ll see demo metrics and can explore the UI."
+        />
         {/* Hero header */}
         <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div className="space-y-2">

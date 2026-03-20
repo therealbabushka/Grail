@@ -77,11 +77,8 @@ export async function middleware(request: NextRequest) {
   }
 
   if (!user) {
-    const redirectUrl = request.nextUrl.clone()
-    redirectUrl.pathname = "/login"
-    // Always return to homepage after login (per product requirement).
-    redirectUrl.searchParams.set("next", "/")
-    return NextResponse.redirect(redirectUrl)
+    // Auth-required pages should still render; UI will show "login to proceed".
+    return response
   }
 
   return response

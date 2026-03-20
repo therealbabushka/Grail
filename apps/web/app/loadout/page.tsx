@@ -24,6 +24,8 @@ import { CaretDown } from "@phosphor-icons/react"
 import type { Json } from "@/lib/supabase/database.types"
 import { createClient as createBrowserClient } from "@/lib/supabase/browser"
 
+import { AuthRequiredBanner } from "@/components/auth-required-banner"
+
 const DEMO_STORAGE_KEY = "grail.demo.loadouts.v2"
 
 const RARITIES = [
@@ -709,6 +711,9 @@ export default function LoadoutPage() {
   return (
     <main className="min-h-screen bg-background px-6 py-10 text-foreground">
       <div className="mx-auto max-w-6xl space-y-6">
+        <AuthRequiredBanner
+          subtitle="Sign in to sync your loadouts to your account. While signed out, you can still build in demo mode."
+        />
         <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <h1 className="font-mono text-2xl font-bold tracking-tight">Loadouts</h1>
@@ -773,7 +778,7 @@ export default function LoadoutPage() {
         {mode === "demo" && (
           <Card className="border-info/40 bg-info/5">
             <CardContent className="py-3 text-xs text-foreground">
-              Running in demo mode. Sign in to persist loadouts in Supabase.
+              Demo mode: sign in to sync loadouts to your account. Changes you make here are not saved to Supabase yet.
             </CardContent>
           </Card>
         )}

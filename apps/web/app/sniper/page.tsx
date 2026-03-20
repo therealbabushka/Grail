@@ -24,6 +24,8 @@ import { Input } from "@workspace/ui/components/input"
 import type { Target, Wear, Variant, Currency, TargetStatus, Watchlist, PriceAlert } from "@/lib/demo-seed"
 import { demoActions, formatMoney, useDemoStore } from "@/lib/prototype-store"
 
+import { AuthRequiredBanner } from "@/components/auth-required-banner"
+
 const WEARS: Wear[] = ["FN", "MW", "FT", "WW", "BS"]
 const VARIANTS: Variant[] = ["none", "stattrak", "souvenir"]
 const CURRENCIES: Currency[] = ["USD", "EUR", "GBP", "CNY"]
@@ -332,6 +334,9 @@ export default function SniperPage() {
   return (
     <main className="min-h-screen bg-background px-6 py-10 text-foreground">
       <div className="mx-auto max-w-6xl space-y-6">
+        <AuthRequiredBanner
+          subtitle="Sign in to sync watchlist targets to your account. While signed out, this page uses demo data."
+        />
         <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <h1 className="font-mono text-2xl font-bold tracking-tight">
