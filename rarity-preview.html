@@ -1,0 +1,107 @@
+<!doctype html>
+<html>
+  <head>
+    <style>
+      :root {
+        --rarity-consumer: #b0c3d9;
+        --rarity-industrial: #5e98d9;
+        --rarity-milspec: #4b69ff;
+        --rarity-restricted: #8847ff;
+        --rarity-classified: #d32ce6;
+        --rarity-covert: #eb4b4b;
+        --rarity-gold: #ffd700;
+      }
+      body {
+        font-family: system-ui;
+        padding: 20px;
+        background: #1a1a2e;
+      }
+      .swatch {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin: 12px 0;
+        padding: 16px;
+        background: #16162a;
+        border-radius: 8px;
+      }
+      .color-box {
+        width: 60px;
+        height: 60px;
+        border-radius: 8px;
+        border: 2px solid rgba(255, 255, 255, 0.1);
+      }
+      .info {
+        color: #fff;
+      }
+      .name {
+        font-weight: 600;
+        font-size: 16px;
+      }
+      .hex {
+        font-family: monospace;
+        opacity: 0.7;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <h2 style="color: #fff; margin-bottom: 24px">Rarity Colors Preview</h2>
+
+    <div class="swatch">
+      <div class="color-box" style="background: var(--rarity-consumer)"></div>
+      <div class="info">
+        <div class="name">Consumer</div>
+        <div class="hex">#b0c3d9</div>
+      </div>
+    </div>
+
+    <div class="swatch">
+      <div class="color-box" style="background: var(--rarity-industrial)"></div>
+      <div class="info">
+        <div class="name">Industrial</div>
+        <div class="hex">#5e98d9</div>
+      </div>
+    </div>
+
+    <div class="swatch">
+      <div class="color-box" style="background: var(--rarity-milspec)"></div>
+      <div class="info">
+        <div class="name">Mil-Spec</div>
+        <div class="hex">#4b69ff</div>
+      </div>
+    </div>
+
+    <div class="swatch">
+      <div class="color-box" style="background: var(--rarity-restricted)"></div>
+      <div class="info">
+        <div class="name">Restricted</div>
+        <div class="hex">#8847ff</div>
+      </div>
+    </div>
+
+    <div class="swatch">
+      <div class="color-box" style="background: var(--rarity-classified)"></div>
+      <div class="info">
+        <div class="name">Classified</div>
+        <div class="hex">#d32ce6</div>
+      </div>
+    </div>
+
+    <div class="swatch">
+      <div class="color-box" style="background: var(--rarity-covert)"></div>
+      <div class="info">
+        <div class="name">Covert</div>
+        <div class="hex">#eb4b4b</div>
+      </div>
+    </div>
+
+    <div class="swatch">
+      <div class="color-box" style="background: var(--rarity-gold)"></div>
+      <div class="info">
+        <div class="name">Gold / Special</div>
+        <div class="hex">#ffd700</div>
+      </div>
+    </div>
+  </body>
+</html>

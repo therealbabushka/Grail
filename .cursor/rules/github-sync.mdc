@@ -1,0 +1,34 @@
+---
+description: Keep GitHub repo in sync
+alwaysApply: true
+---
+
+# GitHub Sync Rule (Commit + Push Workflow)
+
+Goal: keep the GitHub `origin` branch updated whenever the project changes.
+
+## Safety checks (must)
+- Never include secrets or generated artifacts in commits.
+  - Do not commit `.env.local`, `.DS_Store`, `node_modules/`, or any other local-only files.
+- If `.gitignore` is missing/insufficient, ask the user to confirm before staging anything.
+
+## When to propose a sync
+- After finishing any meaningful change (code/features/docs) and before starting unrelated work, check repo state with:
+  - `git status`
+  - If there are changes worth syncing, propose the next step to the user.
+
+## What to ask the user
+- Ask for confirmation before creating a commit or pushing to GitHub.
+  - Example prompt to user: "Sync to GitHub now? (This will run `git add -A`, create a commit, and push.)"
+
+## Sync commands (what the user/agent runs after confirmation)
+- `git add -A`
+- `git commit -m "<short message describing the change>"`
+- `git push -u origin main`
+
+## First-time setup reminder
+- Ensure a GitHub remote exists:
+  - `git remote -v`
+- Ensure the branch is `main`:
+  - `git branch -M main`
+

@@ -1,0 +1,162 @@
+{
+  "startedAt": "2026-03-18T12:04:45.908Z",
+  "updatedAt": "2026-03-18T12:54:52.476Z",
+  "total": 2092,
+  "batchSize": 80,
+  "totalBatches": 27,
+  "currentBatch": 27,
+  "okBatches": 27,
+  "priced7": 1497,
+  "lastStatus": 200,
+  "lastMessage": "DONE okBatches=27/27 priced7=1497",
+  "recent": [
+    {
+      "ts": "2026-03-18T12:04:46.157Z",
+      "msg": "Started. catalog=2092 batches=27 batchSize=80"
+    },
+    {
+      "ts": "2026-03-18T12:04:46.956Z",
+      "msg": "batch 1/27 ok items=58 priced7=49"
+    },
+    {
+      "ts": "2026-03-18T12:06:02.737Z",
+      "msg": "batch 2/27 ok items=82 priced7=120"
+    },
+    {
+      "ts": "2026-03-18T12:07:18.225Z",
+      "msg": "batch 3/27 rate_limited retry_ms=120000"
+    },
+    {
+      "ts": "2026-03-18T12:09:18.436Z",
+      "msg": "batch 3/27 rate_limited retry_ms=120000"
+    },
+    {
+      "ts": "2026-03-18T12:11:18.928Z",
+      "msg": "batch 3/27 ok items=79 priced7=188"
+    },
+    {
+      "ts": "2026-03-18T12:12:34.435Z",
+      "msg": "batch 4/27 ok items=86 priced7=244"
+    },
+    {
+      "ts": "2026-03-18T12:13:49.654Z",
+      "msg": "batch 5/27 rate_limited retry_ms=120000"
+    },
+    {
+      "ts": "2026-03-18T12:15:50.454Z",
+      "msg": "batch 5/27 ok items=79 priced7=303"
+    },
+    {
+      "ts": "2026-03-18T12:17:06.240Z",
+      "msg": "batch 6/27 ok items=80 priced7=366"
+    },
+    {
+      "ts": "2026-03-18T12:18:22.017Z",
+      "msg": "batch 7/27 ok items=82 priced7=423"
+    },
+    {
+      "ts": "2026-03-18T12:19:37.832Z",
+      "msg": "batch 8/27 ok items=78 priced7=492"
+    },
+    {
+      "ts": "2026-03-18T12:20:53.325Z",
+      "msg": "batch 9/27 ok items=81 priced7=545"
+    },
+    {
+      "ts": "2026-03-18T12:22:08.545Z",
+      "msg": "batch 10/27 rate_limited retry_ms=120000"
+    },
+    {
+      "ts": "2026-03-18T12:24:09.032Z",
+      "msg": "batch 10/27 rate_limited retry_ms=120000"
+    },
+    {
+      "ts": "2026-03-18T12:26:09.840Z",
+      "msg": "batch 10/27 ok items=83 priced7=591"
+    },
+    {
+      "ts": "2026-03-18T12:27:25.334Z",
+      "msg": "batch 11/27 ok items=90 priced7=634"
+    },
+    {
+      "ts": "2026-03-18T12:28:41.222Z",
+      "msg": "batch 12/27 ok items=94 priced7=682"
+    },
+    {
+      "ts": "2026-03-18T12:29:56.717Z",
+      "msg": "batch 13/27 ok items=85 priced7=723"
+    },
+    {
+      "ts": "2026-03-18T12:31:12.228Z",
+      "msg": "batch 14/27 ok items=83 priced7=767"
+    },
+    {
+      "ts": "2026-03-18T12:32:27.991Z",
+      "msg": "batch 15/27 ok items=82 priced7=810"
+    },
+    {
+      "ts": "2026-03-18T12:33:43.747Z",
+      "msg": "batch 16/27 ok items=80 priced7=872"
+    },
+    {
+      "ts": "2026-03-18T12:34:59.566Z",
+      "msg": "batch 17/27 ok items=79 priced7=938"
+    },
+    {
+      "ts": "2026-03-18T12:36:15.384Z",
+      "msg": "batch 18/27 ok items=79 priced7=1002"
+    },
+    {
+      "ts": "2026-03-18T12:37:31.159Z",
+      "msg": "batch 19/27 ok items=79 priced7=1059"
+    },
+    {
+      "ts": "2026-03-18T12:38:46.644Z",
+      "msg": "batch 20/27 ok items=79 priced7=1111"
+    },
+    {
+      "ts": "2026-03-18T12:40:02.857Z",
+      "msg": "batch 21/27 ok items=79 priced7=1170"
+    },
+    {
+      "ts": "2026-03-18T12:41:18.350Z",
+      "msg": "batch 22/27 ok items=79 priced7=1235"
+    },
+    {
+      "ts": "2026-03-18T12:42:34.114Z",
+      "msg": "batch 23/27 ok items=79 priced7=1298"
+    },
+    {
+      "ts": "2026-03-18T12:43:49.610Z",
+      "msg": "batch 24/27 ok items=80 priced7=1370"
+    },
+    {
+      "ts": "2026-03-18T12:45:04.834Z",
+      "msg": "batch 25/27 rate_limited retry_ms=120000"
+    },
+    {
+      "ts": "2026-03-18T12:47:05.424Z",
+      "msg": "batch 25/27 ok items=79 priced7=1437"
+    },
+    {
+      "ts": "2026-03-18T12:48:20.643Z",
+      "msg": "batch 26/27 rate_limited retry_ms=120000"
+    },
+    {
+      "ts": "2026-03-18T12:50:21.201Z",
+      "msg": "batch 26/27 rate_limited retry_ms=120000"
+    },
+    {
+      "ts": "2026-03-18T12:52:21.969Z",
+      "msg": "batch 26/27 ok items=71 priced7=1497"
+    },
+    {
+      "ts": "2026-03-18T12:53:37.474Z",
+      "msg": "batch 27/27 ok items=0 priced7=1497"
+    },
+    {
+      "ts": "2026-03-18T12:54:52.476Z",
+      "msg": "DONE okBatches=27/27 priced7=1497"
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+---
+description: Define how mem:update interacts with SPEC.md and the Memory Bank.
+alwaysApply: true
+---
+
+# Memory Update Behavior (`mem:update`)
+
+In this repository, treat spec/memory updates in two ways:
+
+## A. Automatic behavior (no `mem:update` required)
+
+- Throughout any session, **proactively decide** when new information should be promoted into `SPEC.md`:
+  - New or changed product/technical decisions
+  - New flows, data models, constraints, or cross-pillar interactions
+  - Corrections or clarifications to existing behavior
+- When such changes occur, **update `SPEC.md` immediately** (or at the next natural breakpoint in the work), then:
+  - Re-read the updated `SPEC.md` as the canonical spec
+  - Update the relevant `.memory/01–70` file(s) so the Memory Bank stays in sync
+- **Always inform the user** when `SPEC.md` is modified, with a brief note of what changed, so they can track spec evolution.
+- The user **does not need to call `mem:update`** for this to happen; you are responsible for deciding when promotion to the spec is warranted.
+
+## B. Explicit `mem:update` command
+
+When the user explicitly invokes `mem:update`, follow this exact sequence:
+
+1. **Promote session knowledge into `SPEC.md` (automatically):**
+   - Proactively decide if `SPEC.md` is now stale based on the current session (e.g., new product/technical decisions, changed flows, updated data models or constraints, or corrections discovered while working).
+   - When it is stale, update `SPEC.md` yourself — the user does **not** need to manually request a spec edit.
+
+2. **Re-read `SPEC.md` as the canonical spec:**
+   - After any edits, re-read the entire `SPEC.md` and treat it as the single source of truth for product and system behavior.
+
+3. **Regenerate the Memory Bank from `SPEC.md`:**
+   - Update all core Memory Bank files in `.memory/01-brief.md` through `.memory/70-knowledge.md` so they stay fully in sync with the latest `SPEC.md`.
+   - Prefer summarizing and structuring content (not copying `SPEC.md` verbatim), but never contradict `SPEC.md`.
+
+Assume `mem:update` always means: **“Update `SPEC.md` first if needed, then regenerate the Memory Bank from that updated spec.”**
+
