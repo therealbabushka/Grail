@@ -1,6 +1,6 @@
 "use client"
 
-import Link from "next/link"
+import { useState } from "react"
 import { useSearchParams } from "next/navigation"
 
 import { Button } from "@workspace/ui/components/button"
@@ -13,11 +13,37 @@ import {
   CardTitle,
 } from "@workspace/ui/components/card"
 
+import { createClient } from "@/lib/supabase/browser"
+
 export function LoginClient() {
   const searchParams = useSearchParams()
 
   const error = searchParams.get("error")
   const next = searchParams.get("next") ?? "/dashboard"
+  const [isSigningIn, setIsSigningIn] = useState(false)
+
+  async function onGoogleSignIn() {
+    const supabase = createClient()
+    if (!supabase) return
+
+    const redirectTo = new URL("/auth/callback", window.location.origin)
+    redirectTo.searchParams.set("next", next)
+
+    setIsSigningIn(true)
+    const { error: oauthError } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: redirectTo.toString() },
+    })
+
+    // Supabase will redirect on success; only handle errors here.
+    if (oauthError) {
+      setIsSigningIn(false)
+      // Redirect back to login so user sees a clean error state.
+      window.location.href = `/login?error=${encodeURIComponent(oauthError.message ?? "oauth_failed")}&next=${encodeURIComponent(
+        next,
+      )}`
+    }
+  }
 
   return (
     <main className="relative flex min-h-screen flex-col items-center justify-center bg-background px-6 py-10 text-foreground">
@@ -26,7 +52,7 @@ export function LoginClient() {
           <div className="inline-flex items-center gap-2 rounded-none border border-border bg-background/40 px-3 py-2 backdrop-blur">
             <span className="inline-block size-1.5 rounded-full bg-profit" aria-hidden />
             <span className="font-mono text-[11px] tracking-[0.22em] text-text-secondary">
-              AUTH_DISABLED
+              AUTH ENABLED
             </span>
           </div>
           <h1 className="mt-4 font-mono text-3xl font-bold tracking-tight">
@@ -62,17 +88,20 @@ export function LoginClient() {
                 Sign-in error: <span className="font-mono">{error}</span>
               </div>
             ) : null}
-            <div className="rounded-none border border-border bg-background/40 px-3 py-2 text-[11px] text-text-secondary">
-              Authentication is temporarily disabled. Continue to{" "}
-              <span className="font-mono">{next}</span>.
-            </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-3 border-border pt-4">
-            <Button asChild className="w-full font-mono text-xs tracking-wide">
-              <Link href={next}>Continue</Link>
+            <Button
+              className="w-full rounded-none font-mono text-xs tracking-wide"
+              disabled={isSigningIn}
+              onClick={() => {
+                void onGoogleSignIn()
+              }}
+            >
+              {isSigningIn ? "Signing in…" : `Continue with Google`}
             </Button>
+
             <p className="text-[11px] text-text-muted">
-              When auth is re-enabled, this page will switch back to sign-in.
+              After signing in, you will be redirected to: <span className="font-mono">{next}</span>
             </p>
           </CardFooter>
         </Card>

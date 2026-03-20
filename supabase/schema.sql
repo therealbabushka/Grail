@@ -181,3 +181,174 @@ create index if not exists items_weapon_type_idx on items(weapon_type);
 create index if not exists market_price_snapshots_item_idx on market_price_snapshots(item_name);
 create index if not exists market_price_candles_item_ts_idx on market_price_candles(item_name, market, currency, timeframe, ts desc);
 create index if not exists price_alerts_user_active_idx on price_alerts(user_id, is_active);
+
+-- =========================================================
+-- Auth + RLS (per-user isolation)
+-- =========================================================
+
+-- Auto-create profile rows when a user signs up via Supabase Auth.
+create or replace function public.handle_new_user()
+returns trigger as $$
+begin
+  insert into public.profiles (id, display_name, avatar_url, currency_preference)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data->>'display_name', new.email),
+    new.raw_user_meta_data->>'avatar_url',
+    'USD'
+  )
+  on conflict (id) do nothing;
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+after insert on auth.users
+for each row execute procedure public.handle_new_user();
+
+-- Profiles
+alter table public.profiles enable row level security;
+create policy "profiles_select_own"
+on public.profiles
+for select
+using (auth.uid() = id);
+
+create policy "profiles_insert_own"
+on public.profiles
+for insert
+with check (auth.uid() = id);
+
+create policy "profiles_update_own"
+on public.profiles
+for update
+using (auth.uid() = id)
+with check (auth.uid() = id);
+
+-- Loadouts (public for is_public=true, private otherwise)
+alter table public.loadouts enable row level security;
+
+create policy "loadouts_select_public"
+on public.loadouts
+for select
+using (is_public = true);
+
+create policy "loadouts_select_own"
+on public.loadouts
+for select
+using (auth.uid() = user_id);
+
+create policy "loadouts_insert_own"
+on public.loadouts
+for insert
+with check (auth.uid() = user_id);
+
+create policy "loadouts_update_own"
+on public.loadouts
+for update
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+
+create policy "loadouts_delete_own"
+on public.loadouts
+for delete
+using (auth.uid() = user_id);
+
+-- Trades
+alter table public.trades enable row level security;
+create policy "trades_select_own"
+on public.trades
+for select
+using (auth.uid() = user_id);
+create policy "trades_insert_own"
+on public.trades
+for insert
+with check (auth.uid() = user_id);
+create policy "trades_update_own"
+on public.trades
+for update
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+create policy "trades_delete_own"
+on public.trades
+for delete
+using (auth.uid() = user_id);
+
+-- Targets (Watchlist)
+alter table public.targets enable row level security;
+create policy "targets_select_own"
+on public.targets
+for select
+using (auth.uid() = user_id);
+create policy "targets_insert_own"
+on public.targets
+for insert
+with check (auth.uid() = user_id);
+create policy "targets_update_own"
+on public.targets
+for update
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+create policy "targets_delete_own"
+on public.targets
+for delete
+using (auth.uid() = user_id);
+
+-- Watchlist groups (optional broker-like grouping)
+alter table public.target_watchlists enable row level security;
+create policy "target_watchlists_select_own"
+on public.target_watchlists
+for select
+using (auth.uid() = user_id);
+create policy "target_watchlists_insert_own"
+on public.target_watchlists
+for insert
+with check (auth.uid() = user_id);
+create policy "target_watchlists_update_own"
+on public.target_watchlists
+for update
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+create policy "target_watchlists_delete_own"
+on public.target_watchlists
+for delete
+using (auth.uid() = user_id);
+
+alter table public.target_watchlist_items enable row level security;
+create policy "target_watchlist_items_select_own"
+on public.target_watchlist_items
+for select
+using (auth.uid() = user_id);
+create policy "target_watchlist_items_insert_own"
+on public.target_watchlist_items
+for insert
+with check (auth.uid() = user_id);
+create policy "target_watchlist_items_update_own"
+on public.target_watchlist_items
+for update
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+create policy "target_watchlist_items_delete_own"
+on public.target_watchlist_items
+for delete
+using (auth.uid() = user_id);
+
+-- Price alerts (notifications/link-only)
+alter table public.price_alerts enable row level security;
+create policy "price_alerts_select_own"
+on public.price_alerts
+for select
+using (auth.uid() = user_id);
+create policy "price_alerts_insert_own"
+on public.price_alerts
+for insert
+with check (auth.uid() = user_id);
+create policy "price_alerts_update_own"
+on public.price_alerts
+for update
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+create policy "price_alerts_delete_own"
+on public.price_alerts
+for delete
+using (auth.uid() = user_id);

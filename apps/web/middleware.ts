@@ -2,18 +2,20 @@ import { NextResponse, type NextRequest } from "next/server"
 
 import { createServerClient } from "@supabase/ssr"
 
-const AUTH_DISABLED = true
+const AUTH_DISABLED = false
 
 const PUBLIC_PATHS = [
   "/",
   "/market",
   "/login",
+  "/auth/callback",
   "/design-system",
   "/shadcn-preview",
 ]
 
 function isPublicPath(pathname: string) {
   if (PUBLIC_PATHS.includes(pathname)) return true
+  if (pathname.startsWith("/api/")) return true // Public marketplace/catalog endpoints.
   if (pathname.startsWith("/market/")) return true
   if (pathname.startsWith("/loadout/")) return true // public share links
   return false
