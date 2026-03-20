@@ -21,27 +21,34 @@ export function LoginClient() {
   const error = searchParams.get("error")
   const next = searchParams.get("next") ?? "/dashboard"
   const [isSigningIn, setIsSigningIn] = useState(false)
+  const [localError, setLocalError] = useState<string | null>(null)
 
   async function onGoogleSignIn() {
     const supabase = createClient()
-    if (!supabase) return
+    if (!supabase) {
+      setLocalError(
+        "Supabase env missing. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in Vercel.",
+      )
+      return
+    }
 
+    setLocalError(null)
     const redirectTo = new URL("/auth/callback", window.location.origin)
     redirectTo.searchParams.set("next", next)
 
     setIsSigningIn(true)
-    const { error: oauthError } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: redirectTo.toString() },
-    })
+    try {
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: redirectTo.toString() },
+      })
 
-    // Supabase will redirect on success; only handle errors here.
-    if (oauthError) {
+      // Supabase will redirect on success; only handle errors here.
+      if (oauthError) setLocalError(oauthError.message ?? "oauth_failed")
+    } catch (e) {
+      setLocalError(e instanceof Error ? e.message : "oauth_failed")
+    } finally {
       setIsSigningIn(false)
-      // Redirect back to login so user sees a clean error state.
-      window.location.href = `/login?error=${encodeURIComponent(oauthError.message ?? "oauth_failed")}&next=${encodeURIComponent(
-        next,
-      )}`
     }
   }
 
@@ -86,6 +93,11 @@ export function LoginClient() {
             {error ? (
               <div className="rounded-none border border-danger/30 bg-danger/10 px-3 py-2 text-[11px] text-danger">
                 Sign-in error: <span className="font-mono">{error}</span>
+              </div>
+            ) : null}
+            {localError ? (
+              <div className="rounded-none border border-danger/30 bg-danger/10 px-3 py-2 text-[11px] text-danger">
+                Sign-in error: <span className="font-mono">{localError}</span>
               </div>
             ) : null}
           </CardContent>
