@@ -69,7 +69,7 @@ export async function middleware(request: NextRequest) {
     // If already logged in, keep /login from being a dead-end.
     if (pathname === "/login" && user) {
       const redirectUrl = request.nextUrl.clone()
-      redirectUrl.pathname = "/dashboard"
+      redirectUrl.pathname = "/"
       redirectUrl.search = ""
       return NextResponse.redirect(redirectUrl)
     }

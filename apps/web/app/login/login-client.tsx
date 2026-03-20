@@ -19,7 +19,7 @@ export function LoginClient() {
   const searchParams = useSearchParams()
 
   const error = searchParams.get("error")
-  const next = searchParams.get("next") ?? "/dashboard"
+  const next = searchParams.get("next") ?? "/"
   const [isSigningIn, setIsSigningIn] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
 

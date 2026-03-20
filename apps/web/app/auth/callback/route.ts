@@ -5,7 +5,7 @@ import { createServerClient } from "@supabase/ssr"
 export const dynamic = "force-dynamic"
 
 function getSafeNextTarget(next: string | null | undefined) {
-  if (!next) return "/dashboard"
+  if (!next) return "/"
   // Avoid open redirects: only allow relative paths within this app.
   if (!next.startsWith("/")) return "/dashboard"
   return next
