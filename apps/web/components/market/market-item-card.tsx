@@ -295,7 +295,7 @@ export function MarketItemCard({ item }: { item: MarketCatalogItem }) {
 
                   {item.hasStatTrak ? (
                     <span
-                      className="pointer-events-none absolute top-[12px] left-[12px] z-10 rounded-[6px] bg-[#ff7a37] px-2 py-[5px] font-sans text-[12px] font-medium leading-[0.98] tracking-[-0.1px] text-[#f9f9f9]"
+                      className="pointer-events-none absolute top-[13px] left-[12px] z-10 rounded-none bg-[#ff7a37] px-2 py-[5px] font-sans text-[12px] font-medium leading-[0.98] tracking-[-0.1px] text-[#f9f9f9]"
                       title="StatTrak™ available"
                     >
                       StatTrak™
