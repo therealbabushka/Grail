@@ -160,10 +160,10 @@ export function TopTabs() {
 
   return (
     <nav
-      className="sticky top-0 z-50 border-b border-border bg-background/90 text-foreground backdrop-blur-md dark:border-[#282828] dark:bg-[rgba(8,8,8,0.8)]"
+      className="sticky top-0 z-50 bg-background/90 text-foreground backdrop-blur-md dark:bg-[rgba(8,8,8,0.8)]"
       aria-label="Primary"
     >
-      <div className="mx-auto flex min-h-14 w-full max-w-[1600px] items-center justify-between gap-3 border border-[rgba(24,26,25,1)] px-10 py-0 lg:gap-6">
+      <div className="mx-auto flex min-h-14 w-full max-w-[1600px] items-center justify-between gap-3 px-10 py-0 lg:gap-6">
         <div className="flex min-w-0 flex-1 items-center gap-6 lg:gap-10">
           <Link
             href="/"
@@ -173,15 +173,14 @@ export function TopTabs() {
           </Link>
 
           <div className="flex min-w-0 flex-1 items-stretch overflow-x-auto [-webkit-overflow-scrolling:touch] md:flex-none">
-            <div className="flex min-h-[55px] min-w-0 items-stretch border border-border dark:border-[rgba(255,255,255,0.09)]">
+            <div className="flex min-h-[55px] min-w-0 items-stretch !border-0">
               {visibleTabs.map((t) => {
                 const active = isActive(pathname, t.href)
                 return (
                   <Link key={t.href} href={t.href} className="flex shrink-0">
                     <span
                       className={cn(
-                        "flex h-[55px] min-w-0 items-center justify-center border-border px-4 py-2 text-[12px] font-medium tracking-[0.017em] sm:px-6",
-                        "border-r last:border-r-0 dark:border-[rgba(255,255,255,0.09)]",
+                        "flex h-[55px] min-w-0 items-center justify-center border-0 border-x border-border px-4 py-2 text-[12px] font-medium tracking-[0.017em] sm:px-6 dark:border-[rgba(255,255,255,0.09)]",
                         active
                           ? "bg-muted text-foreground dark:bg-[#151515] dark:text-[#fafafa]"
                           : "text-muted-foreground hover:bg-muted/80 hover:text-foreground dark:text-[#888] dark:hover:bg-[#151515]/40 dark:hover:text-[#fafafa]",
@@ -276,7 +275,7 @@ export function TopTabs() {
           {signedIn ? (
             <Button
               variant="secondary"
-              className="h-8 rounded-none border border-border bg-secondary px-4 font-mono text-[12px] font-medium tracking-[0.017em] text-secondary-foreground hover:bg-secondary/80 dark:border-[#282828] dark:bg-[#262626] dark:text-[#fafafa] dark:hover:bg-[#333]"
+              className="h-8 rounded-none border-0 bg-secondary px-4 font-mono text-[12px] font-medium tracking-[0.017em] text-secondary-foreground hover:bg-secondary/80 dark:bg-[#262626] dark:text-[#fafafa] dark:hover:bg-[#333]"
               onClick={onLogout}
             >
               Logout
@@ -293,6 +292,11 @@ export function TopTabs() {
           )}
         </div>
       </div>
+      {/* Hairline below header: separate from backdrop-blur layer — borders on the same element as backdrop-filter often fail to paint in WebKit/Chromium after paint/hydration. */}
+      <div
+        className="pointer-events-none h-px w-full shrink-0 bg-[var(--color-border)]"
+        aria-hidden
+      />
     </nav>
   )
 }

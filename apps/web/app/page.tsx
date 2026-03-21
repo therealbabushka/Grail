@@ -256,7 +256,7 @@ export default function HomePage() {
                             <div className="h-20 w-full bg-border/10 dark:bg-[#1a1a1a]" />
                           )}
                         </div>
-                        <div className="space-y-1 border-t border-[0.5px] border-border/70 px-4 py-3 dark:border-[#202020]">
+                        <div className="space-y-1 border-t border-[0.5px] border-border/70 px-4 py-3 dark:border-t-[1px] dark:border-[#202020]">
                           <p className="font-sans text-[12px] font-medium leading-[0.98] tracking-[-0.1px] text-[#878787]">
                             {item.weaponName ?? "—"}
                           </p>

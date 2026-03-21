@@ -309,7 +309,7 @@ export function MarketItemCard({ item }: { item: MarketCatalogItem }) {
             <div className="relative flex min-h-0 w-full flex-1 flex-col">
               <div
                 aria-hidden
-                className="pointer-events-none absolute inset-0 border-t-[0.5px] border-solid border-[#b8bec8] dark:border-[#202020]"
+                className="pointer-events-none absolute inset-0 border-t-[0.5px] border-solid border-[#b8bec8] dark:border-t-[1px] dark:border-[#202020]"
               />
               <div className="relative flex min-h-0 w-full flex-1 flex-col justify-between gap-[16px] py-[16px] pl-[16px] pr-[20px] leading-[0.98]">
                 <div className="flex min-h-0 w-full flex-col gap-[16px]">
@@ -404,7 +404,7 @@ export function MarketItemCard({ item }: { item: MarketCatalogItem }) {
 
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-0 z-[2] rounded-none border-[0.5px] border-solid border-[#b8bec8] dark:border-[#202020]"
+            className="pointer-events-none absolute inset-0 z-[2] rounded-none border-[0.5px] border-solid border-[#b8bec8] dark:border-[1px] dark:border-[#202020]"
           />
         </div>
       </div>

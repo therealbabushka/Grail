@@ -11,7 +11,7 @@ export function MainContentWidth({ children }: { children: React.ReactNode }) {
   return (
     <div
       className={cn(
-        "min-w-0 w-full border border-[rgba(30,30,30,1)] mx-auto",
+        "min-w-0 w-full border-0 border-x border-[rgba(30,30,30,1)] mx-auto",
         isMarketListings ? "max-w-none" : "max-w-[1600px]"
       )}
     >
