@@ -6,7 +6,7 @@ import { fetchAllMarketSnapshots } from "@/lib/pricing/providers"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 const DEFAULT_EXTERIOR = "Field-Tested"
-const ALL_MARKETS = ["steam", "skinport", "bitskins", "csfloat", "buff163", "dmarket", "waxpeer"] as const
+const ALL_MARKETS = ["steam", "skinport", "bitskins", "csfloat", "csmoney", "buff163", "dmarket", "waxpeer"] as const
 
 function toUtcDayStartIso(d: Date) {
   const x = new Date(d)

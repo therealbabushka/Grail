@@ -4,7 +4,7 @@ import { Badge } from "@workspace/ui/components/badge"
 
 export default function ShadcnPreviewPage() {
   return (
-    <div className="p-8 space-y-8">
+    <div className="min-w-0 w-full space-y-8 px-10 py-8">
       <div className="space-y-4">
         <p className="text-sm text-gray-500">
           Raw shadcn/ui components from <code>@workspace/ui</code> with no extra Grail layout.

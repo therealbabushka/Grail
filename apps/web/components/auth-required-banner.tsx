@@ -54,6 +54,8 @@ export function AuthRequiredBanner({
 
   if (signedIn === null || signedIn) return null
 
+  const nextTarget = typeof window !== "undefined" ? `${window.location.pathname}${window.location.search}` : "/"
+
   return (
     <Card className="border-warning/30 bg-warning/10">
       <CardHeader className="py-3">
@@ -62,7 +64,7 @@ export function AuthRequiredBanner({
       </CardHeader>
       <CardContent className="pt-0">
         <Button asChild variant="secondary" className="h-8 rounded-none font-mono text-xs tracking-wide">
-          <Link href="/login">{loginText}</Link>
+          <Link href={`/login?next=${encodeURIComponent(nextTarget)}`}>{loginText}</Link>
         </Button>
       </CardContent>
     </Card>

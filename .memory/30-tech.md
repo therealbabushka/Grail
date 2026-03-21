@@ -14,8 +14,7 @@
 | Toasts | shadcn Sonner |
 
 ### Typography
-- **Headlines & Numbers:** JetBrains Mono (bold, all-caps for numbers).
-- **Body:** Inter.
+- **Sitewide:** JetBrains Mono — Next.js `layout.tsx` loads `--font-jetbrains-mono`; `--font-sans` and `--font-mono` in `globals.css` both use it; `font-hero-serif` utility uses the same stack.
 
 ### Development Environment
 - **Monorepo:** Turborepo with pipelines in `turbo.json`.
@@ -25,7 +24,7 @@
 
 ### Key Dependencies
 - Next.js 16, React, `@supabase/ssr` (auth + DB client), shadcn/ui, Radix UI, Tailwind CSS.
-- JetBrains Mono + Inter (Google Fonts).
+- JetBrains Mono (Google Font) for default UI.
 
 ### Environment Variables
 | Variable | Purpose | Scope |
@@ -35,6 +34,7 @@
 | `SUPABASE_SERVICE_ROLE_KEY` | Admin access (seeding scripts only) | Server only |
 | `BITSKINS_API_KEY` | BitSkins API key (v2 live pricing) | Server only (`apps/web`) |
 | `BITSKINS_API_SECRET` | BitSkins 2FA TOTP seed (base32) for per-request `code` | Server only (`apps/web`) |
+| `PRICE_EMPIRE_API_KEY` | Price Empire API key (one-time bulk seed; 100 total calls) | Server only (`apps/web`) |
 
 - Google OAuth credentials (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`) are configured directly in the Supabase dashboard, not in application code.
 
@@ -58,7 +58,7 @@
 - Incremental Steam market sync endpoint exists at `/api/catalog/sync` (authorized) to upsert broader CS2 market classes (stickers, containers, agents, patches, charms, etc.) into `items`.
 
 ### AI Agents & Skills (`.agents/`)
-**Skills:** shadcn (manage shadcn components, registries, styling); teach-impeccable (design context setup — complete, output in `/.impeccable.md`).
+**Skills:** shadcn (manage shadcn components, registries, styling); frontend-design (distinctive UI, typography, motion — `.agents/skills/frontend-design/`); teach-impeccable (design context setup — complete, output in `/.impeccable.md`).
 
 **Agents (9):**
 | Agent | Purpose |

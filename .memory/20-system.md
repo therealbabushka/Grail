@@ -2,6 +2,7 @@
 
 ### System Overview
 - Turborepo monorepo with a single Next.js 16 (App Router + Turbopack) application in `apps/web`, a shared UI package in `packages/ui`, backed by Supabase (PostgreSQL + Auth), deployed to Vercel.
+- **Layout:** `#main` uses **`MainContentWidth`** — client shell with `usePathname()`: `max-w-[1600px] mx-auto` on all routes **except** `/market` listings (full width); `/market/[id]` and other routes use the cap (same as **`TopTabs`** inner row). Root uses `min-w-0 w-full` on `html`/`body`/`#main`; horizontal padding `px-10` (40px) on nav row and pages.
 
 ### Project Structure
 ```
@@ -26,34 +27,39 @@ Grail/
 | `/` | Public | Market-first landing (search + curated rails) |
 | `/market` | Public | Marketplace browse/search |
 | `/market/[id]` | Public | Marketplace item detail |
-| `/dashboard` | Protected | Home Dashboard (command center HUD) |
-| `/login` | Public | Auth disabled screen |
-| `/trade-links` | Protected | Trade Links pillar |
-| `/loadout` | Protected | Loadouts (user's loadouts) |
+| `/dashboard` | Auth-gated UI | Command Center HUD (`AuthGate`) |
+| `/login` | Public | Google OAuth |
+| `/float-flip` | Auth-gated UI | Trades pillar (Float Flip) |
+| `/trade-links` | Auth-gated UI | **Alias** — re-exports `float-flip/page.tsx` |
+| `/loadout` | Auth-gated UI | Loadouts (Supabase; no demo seed) |
 | `/loadout/[id]` | Public | Shareable loadout view (when `is_public = true`) |
-| `/watchlist` | Protected | Watchlist pillar |
-| `/profile` | Protected | Profile / currency settings |
+| `/sniper` | Auth-gated UI | Watchlist pillar |
+| `/watchlist` | Auth-gated UI | **Alias** — re-exports `sniper/page.tsx` |
+| `/profile` | Auth-gated UI | Profile / currency settings |
 
-- **Middleware** (`apps/web/middleware.ts`): auth protection via `@supabase/ssr` (currently disabled in code); public routes include `/`, `/market*`, `/login`, `/loadout/[id]`.
+- **Middleware** (`apps/web/middleware.ts`): `AUTH_DISABLED = false`. Refreshes session; **public paths** include `/`, `/market`, `/market/*`, `/login`, `/auth/callback`, `/design-system`, `/shadcn-preview`, `/api/*`, `/loadout/*`. Does **not** blanket-redirect unauthenticated users to `/login`; pillar pages use **`AuthGate`** so deep links work and sign-in is in-flow.
 
-### Database Schema (Supabase — 5 Tables)
-1. **profiles** — extends `auth.users` (id, display_name, avatar_url, currency_preference). Auto-created via trigger on `auth.users` INSERT.
-2. **trades** — Trades data (skin_name, wear, variant, float_value, image_url, buy/sell price, status, currency, dates, notes).
-3. **loadouts** — Loadouts (name, is_public, slots JSONB).
-4. **targets** — Watchlist (skin_name, wear, variant, target_price, currency, float range, status, acquired_price/date, marketplace_links JSONB, notes).
-5. **items** — Static CS2 items (~3500 rows, name UNIQUE, weapon_type, collection, rarity, image_url).
+### Database Schema (Supabase — core tables)
+1. **profiles** — extends `auth.users` (currency_preference, etc.). Auto-created via trigger on `auth.users` INSERT.
+2. **trades** — P&L / trade rows (`user_id`, skin, wear, variant, float, prices, status, dates).
+3. **loadouts** — `slots` JSONB, `is_public`; **no** client-side demo store in production UI.
+4. **targets** — Watchlist targets (price, float range, status, `marketplace_links` JSONB).
+5. **target_watchlists** / **target_watchlist_items** — Named watchlists + membership (broker-style).
+6. **price_alerts** — GTT-style alerts (notify/link only).
+7. **items** — Static CS2 catalog (~3500+ rows, `name` UNIQUE).
+8. **market_price_snapshots** / **market_price_candles** — Live pricing time-series.
 
-Key DB features: `updated_at` triggers on all tables, composite indexes on user queries, `float_range_valid` CHECK constraint on targets.
+Key DB features: `updated_at` triggers, composite indexes, `float_range_valid` CHECK on targets, `sell_after_buy` on trades.
 
 ### RLS Policies
-- profiles/trades/loadouts/targets: users can only access their own rows (`auth.uid() = user_id`).
+- profiles/trades/loadouts/targets/target_watchlists/target_watchlist_items/price_alerts: users can only access their own rows (`auth.uid() = user_id`) where applicable.
 - loadouts: additionally, public loadouts (`is_public = true`) are SELECT-able by anyone.
-- items: publicly readable by all (static reference data).
+- items + market price tables: read policies per `schema.sql` (catalog and pricing data).
 
 ### Data Flow & Fetching Strategy
-- **Reads:** React Server Components fetch via Supabase client in `page.tsx` / `layout.tsx`.
-- **Writes:** Next.js Server Actions for create/update/delete mutations.
-- **Client interactivity:** `@supabase/ssr` client for optimistic updates where needed (trade creation, target status changes).
+- **Reads:** Mix of RSC and client `createBrowserClient()` from `@/lib/supabase/browser` for pillar pages.
+- **Writes:** Client `upsert`/`insert`/`delete` against Supabase with RLS (trades, loadouts, targets, watchlists).
+- **Legacy note:** Some surfaces (e.g. `/dashboard`) may still reference `useDemoStore` until migrated to Supabase metrics.
 - **Profit/ROI:** Computed client-side (`sell_price - buy_price`, `(profit / buy_price) * 100`).
 - **Pricing pipeline** (when live pricing is in use) supports future unrealized P&L and a holdings view for open trades.
 
@@ -63,6 +69,6 @@ Key DB features: `updated_at` triggers on all tables, composite indexes on user 
 
 ### Non-Functional Requirements
 - **Performance:** Vercel Analytics + Speed Insights (`<Analytics />`, `<SpeedInsights />` in root layout).
-- **Security:** RLS enforced on all tables; middleware protection is planned (auth currently disabled).
+- **Security:** RLS on user data; middleware refreshes session; pillar UX uses `AuthGate` for signed-out users.
 - **Accessibility:** Keyboard navigation, ARIA via Radix, color never sole indicator, focus-visible preserved.
 - **Monitoring:** Vercel deployment logs + Supabase dashboard for MVP (Sentry is post-MVP).

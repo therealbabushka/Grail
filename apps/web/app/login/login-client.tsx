@@ -5,7 +5,6 @@ import { useSearchParams } from "next/navigation"
 
 import { Button } from "@workspace/ui/components/button"
 import {
-  Card,
   CardContent,
   CardDescription,
   CardFooter,
@@ -53,22 +52,27 @@ export function LoginClient() {
   }
 
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center bg-background px-6 py-10 text-foreground">
-      <div className="mx-auto w-full max-w-md space-y-8">
+    <main className="relative flex min-h-screen w-full min-w-0 flex-col items-center justify-center bg-background px-10 py-10 text-foreground">
+      <div className="w-full max-w-md space-y-8">
         <header className="text-center">
           <div className="inline-flex items-center gap-2 rounded-none border border-border bg-background/40 px-3 py-2 backdrop-blur">
             <span className="inline-block size-1.5 rounded-full bg-profit" aria-hidden />
-            <span className="font-mono text-[11px] tracking-[0.22em] text-text-secondary">
+            <span className="font-mono text-[12px] tracking-[0.22em] text-text-secondary">
               AUTH ENABLED
             </span>
           </div>
-          <h1 className="mt-4 font-mono text-3xl font-bold tracking-tight">
+          <h1 className="font-hero-serif mt-4 text-3xl font-normal tracking-[0.08em] text-foreground">
             GRAIL
           </h1>
           <p className="mt-2 text-sm text-text-secondary">CS2 market cockpit</p>
         </header>
 
-        <Card className="bg-background/40 backdrop-blur">
+        {/* Card wrapper intentionally not using the shared <Card> primitive:
+            browser preview removed the <div data-slot="card" ...> node. */}
+        <div
+          data-size="default"
+          className="group/card flex flex-col gap-4 overflow-hidden rounded-none bg-card py-4 text-xs/relaxed text-card-foreground ring-1 ring-foreground/10 has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:gap-2 data-[size=sm]:py-3 data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-none *:[img:last-child]:rounded-none bg-background/40 backdrop-blur"
+        >
           <CardHeader className="space-y-2">
             <CardTitle className="font-mono text-lg">Market-first. Tool-linked.</CardTitle>
             <CardDescription className="text-xs text-text-secondary">
@@ -91,17 +95,17 @@ export function LoginClient() {
               </li>
             </ul>
             {error ? (
-              <div className="rounded-none border border-danger/30 bg-danger/10 px-3 py-2 text-[11px] text-danger">
+              <div className="rounded-none border border-danger/30 bg-danger/10 px-3 py-2 text-[12px] text-danger">
                 Sign-in error: <span className="font-mono">{error}</span>
               </div>
             ) : null}
             {localError ? (
-              <div className="rounded-none border border-danger/30 bg-danger/10 px-3 py-2 text-[11px] text-danger">
+              <div className="rounded-none border border-danger/30 bg-danger/10 px-3 py-2 text-[12px] text-danger">
                 Sign-in error: <span className="font-mono">{localError}</span>
               </div>
             ) : null}
           </CardContent>
-          <CardFooter className="flex flex-col gap-3 border-border pt-4">
+          <CardFooter className="flex flex-col gap-3 border-border pt-4 box-content">
             <Button
               className="w-full rounded-none font-mono text-xs tracking-wide"
               disabled={isSigningIn}
@@ -112,11 +116,11 @@ export function LoginClient() {
               {isSigningIn ? "Signing in…" : `Continue with Google`}
             </Button>
 
-            <p className="text-[11px] text-text-muted">
+            <p className="text-[12px] text-text-muted">
               After signing in, you will be redirected to: <span className="font-mono">{next}</span>
             </p>
           </CardFooter>
-        </Card>
+        </div>
       </div>
     </main>
   )

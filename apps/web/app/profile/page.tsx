@@ -22,12 +22,12 @@ export default function ProfilePage() {
 
   return (
     <AuthGate subtitle="Login to proceed">
-      <main className="min-h-screen bg-background px-6 py-10 text-foreground">
-        <div className="mx-auto max-w-xl space-y-6">
+      <main className="min-h-screen w-full min-w-0 bg-background px-10 py-10 text-foreground">
+        <div className="w-full space-y-6">
         <header>
           <div className="inline-flex items-center gap-2 rounded-none border border-border bg-background/40 px-3 py-2 backdrop-blur">
             <span className="inline-block size-1.5 rounded-full bg-info" aria-hidden />
-            <span className="font-mono text-[11px] tracking-[0.22em] text-text-secondary">SETTINGS</span>
+            <span className="font-mono text-[12px] tracking-[0.22em] text-text-secondary">SETTINGS</span>
           </div>
           <h1 className="mt-4 font-mono text-2xl font-bold tracking-tight">Profile</h1>
           <p className="mt-1 text-xs text-text-secondary">Demo settings · Stored locally</p>

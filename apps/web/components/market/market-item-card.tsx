@@ -1,9 +1,16 @@
+"use client"
+
 import Link from "next/link"
 import Image from "next/image"
 import * as React from "react"
 
-import { Card, CardContent } from "@workspace/ui/components/card"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@workspace/ui/components/tooltip"
+import { cn } from "@workspace/ui/lib/utils"
+
+import {
+  MARKET_CARD_INTRINSIC_HEIGHT_PX,
+  MARKET_CARD_MIN_WIDTH_PX,
+  MARKET_CARD_RADIAL_BG,
+} from "./market-card-constants"
 
 export type MarketCatalogItem = {
   id: string
@@ -16,13 +23,8 @@ export type MarketCatalogItem = {
   floatMax?: number
   exteriors: Array<"FN" | "MW" | "FT" | "WW" | "BS">
   hasStatTrak: boolean
-}
-
-function rarityLabel(name?: string) {
-  if (!name) return "—"
-  if (name.trim().toLowerCase() === "unknown") return "—"
-  if (name === "Mil-Spec Grade") return "Mil-Spec"
-  return name
+  referencePrice?: number
+  marketPrices?: Record<string, number>
 }
 
 function fmtFloatRange(min?: number, max?: number) {
@@ -38,151 +40,374 @@ function wearLabelByFloat(value: number) {
   return "Battle-Scarred"
 }
 
-function chip(text: string, tone: "default" | "muted" = "default") {
-  const base =
-    "rounded-none border border-border bg-background/40 px-1.5 py-0.5 font-mono text-[10px] tabular-nums"
-  const color = tone === "muted" ? "text-text-muted" : "text-text-secondary"
-  return <span className={`${base} ${color}`}>{text}</span>
+function pickPreferredExterior(exteriors: MarketCatalogItem["exteriors"]) {
+  const pref: MarketCatalogItem["exteriors"] = ["FT", "MW", "FN", "WW", "BS"]
+  for (const p of pref) if (exteriors.includes(p)) return p
+  return exteriors[0] ?? "FT"
 }
 
-export function MarketItemCard({
-  item,
-  isRecent,
-  dense = false,
-}: {
-  item: MarketCatalogItem
-  isRecent?: boolean
-  dense?: boolean
-}) {
+function steamExteriorLabel(exterior: MarketCatalogItem["exteriors"][number]) {
+  switch (exterior) {
+    case "FN":
+      return "Factory New"
+    case "MW":
+      return "Minimal Wear"
+    case "FT":
+      return "Field-Tested"
+    case "WW":
+      return "Well-Worn"
+    case "BS":
+      return "Battle-Scarred"
+  }
+}
+
+/** Matches `/market/[id]` pricing: Steam-style hash name with preferred wear when exteriors exist. */
+function marketHashNameForPricing(item: MarketCatalogItem) {
+  const name = item.name
+  if (!item.exteriors?.length) return name
+  return `${name} (${steamExteriorLabel(pickPreferredExterior(item.exteriors))})`
+}
+
+function isNoWearCategory(weaponName?: string) {
+  const w = (weaponName ?? "").toLowerCase()
+  return (
+    w.includes("agent") ||
+    w.includes("sticker") ||
+    w.includes("patch") ||
+    w.includes("charm") ||
+    w.includes("container") ||
+    w.includes("graffiti")
+  )
+}
+
+function wearSummaryLine(item: MarketCatalogItem, floatMid: number | null, floatRangeStr: string | null) {
+  if (floatMid != null && floatRangeStr) {
+    return `${wearLabelByFloat(floatMid)} · ${floatMid.toFixed(6)} · ${floatRangeStr}`
+  }
+  if (isNoWearCategory(item.weaponName)) {
+    return "No wear rating"
+  }
+  const ex = item.exteriors ?? []
+  if (ex.length > 0 && ex.length < 5) {
+    return `Wear varies by exterior (${ex.join(" · ")})`
+  }
+  if (ex.length > 0) {
+    return "Wear varies by exterior (FN–BS)"
+  }
+  return "Wear data unavailable"
+}
+
+type SnapshotJson = {
+  currency?: string
+  markets?: Array<{ price?: number | null }>
+}
+
+function useMarketPriceRange(pricingKey: string) {
+  const rootRef = React.useRef<HTMLDivElement | null>(null)
+  const [shouldLoad, setShouldLoad] = React.useState(false)
+  const [loading, setLoading] = React.useState(false)
+  const [range, setRange] = React.useState<{
+    min: number
+    max: number
+    currency: string
+  } | null>(null)
+  const [fetchError, setFetchError] = React.useState(false)
+
+  React.useEffect(() => {
+    const el = rootRef.current
+    if (!el || typeof IntersectionObserver === "undefined") {
+      setShouldLoad(true)
+      return
+    }
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) setShouldLoad(true)
+      },
+      { rootMargin: "160px", threshold: 0.01 }
+    )
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
+
+  React.useEffect(() => {
+    if (!shouldLoad) return
+    const ac = new AbortController()
+    let cancelled = false
+
+    async function run() {
+      setLoading(true)
+      setFetchError(false)
+      setRange(null)
+      try {
+        const res = await fetch(
+          `/api/pricing/snapshot?item=${encodeURIComponent(pricingKey)}&currency=USD`,
+          { signal: ac.signal }
+        )
+        if (!res.ok) throw new Error("snapshot_failed")
+        const json = (await res.json()) as SnapshotJson
+        const prices = (json.markets ?? [])
+          .map((m) => m.price)
+          .filter((p): p is number => typeof p === "number" && Number.isFinite(p) && p > 0)
+        if (cancelled) return
+        if (prices.length === 0) {
+          setRange(null)
+          return
+        }
+        const min = Math.min(...prices)
+        const max = Math.max(...prices)
+        const currency = (json.currency ?? "USD").toUpperCase()
+        setRange({ min, max, currency })
+      } catch {
+        if (ac.signal.aborted) return
+        if (!cancelled) {
+          setRange(null)
+          setFetchError(true)
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    run()
+    return () => {
+      cancelled = true
+      ac.abort()
+    }
+  }, [shouldLoad, pricingKey])
+
+  return { rootRef, range, loading, fetchError, started: shouldLoad }
+}
+
+function formatMoney(amount: number, currency: string) {
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: currency.length === 3 ? currency : "USD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount)
+  } catch {
+    return `$${amount.toFixed(2)}`
+  }
+}
+
+/** Category (weapon) + skin line split on `|` for clearer hierarchy on catalog cards. */
+function categoryAndSkinTitle(
+  name: string,
+  weaponName: string | undefined,
+  isUnknownWeapon: (v?: string) => boolean
+) {
+  const pipe = name.indexOf("|")
+  if (pipe >= 0) {
+    const leftRaw = name
+      .slice(0, pipe)
+      .replace(/★\s*/g, "")
+      .trim()
+    const skinLine = name.slice(pipe + 1).trim()
+    const category = !isUnknownWeapon(weaponName) ? weaponName!.trim() : leftRaw || "—"
+    return { category, skinTitle: skinLine || name.replace(/★\s*/g, "").trim() }
+  }
+  return {
+    category: !isUnknownWeapon(weaponName) ? weaponName!.trim() : "—",
+    skinTitle: name.replace(/★\s*/g, "").trim(),
+  }
+}
+
+export function MarketItemCard({ item }: { item: MarketCatalogItem }) {
+  const pricingKey = React.useMemo(
+    () => marketHashNameForPricing(item),
+    [item.name, item.exteriors.join(",")]
+  )
+  const { rootRef, range, loading: priceLoading, fetchError: priceError, started: priceStarted } =
+    useMarketPriceRange(pricingKey)
+
   const isUnknown = (value?: string) => {
     if (!value) return true
     const v = value.trim().toLowerCase()
     return v.length === 0 || v === "unknown" || v === "n/a" || v === "-"
   }
 
-  const floatRange = fmtFloatRange(item.floatMin, item.floatMax)
-  const exteriors = item.exteriors ?? []
-  const exteriorChips = dense ? exteriors.slice(0, 2) : exteriors.slice(0, 3)
-  const remainingExteriorCount = Math.max(0, exteriors.length - exteriorChips.length)
+  const floatRangeStr = fmtFloatRange(item.floatMin, item.floatMax)
   const floatMid =
     typeof item.floatMin === "number" && typeof item.floatMax === "number"
       ? (item.floatMin + item.floatMax) / 2
       : null
   const floatMarkerPercent = floatMid != null ? Math.max(0, Math.min(100, floatMid * 100)) : null
-  const weaponName = isUnknown(item.weaponName) ? "—" : item.weaponName!
+  const floatMinPct =
+    typeof item.floatMin === "number" ? Math.max(0, Math.min(100, item.floatMin * 100)) : null
+  const floatMaxPct =
+    typeof item.floatMax === "number" ? Math.max(0, Math.min(100, item.floatMax * 100)) : null
+  const { category: categoryLabel, skinTitle } = categoryAndSkinTitle(item.name, item.weaponName, isUnknown)
+  const wearLine = wearSummaryLine(item, floatMid, floatRangeStr)
 
   return (
     <Link
       href={`/market/${encodeURIComponent(item.id)}`}
-      className="group block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+      className="group block h-full min-h-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
       aria-label={`Open ${item.name}`}
     >
-      <Card
-        className="h-full w-full overflow-hidden border-border bg-gradient-to-b from-surface to-background/70 transition-all hover:-translate-y-0.5 hover:bg-surface-hover"
-        style={
-          item.rarityColor
-            ? ({
-                boxShadow: `0 0 0 1px ${item.rarityColor}33, 0 10px 30px -22px ${item.rarityColor}55`,
-                contentVisibility: "auto",
-                containIntrinsicSize: "176px 240px",
-              } as React.CSSProperties)
-            : ({
-                contentVisibility: "auto",
-                containIntrinsicSize: "176px 240px",
-              } as React.CSSProperties)
-        }
-      >
-        <CardContent className={dense ? "p-2.5" : "p-3"}>
-          <div className="mb-1 flex items-center justify-between text-[10px]">
-            <span className="inline-flex items-center gap-1 text-emerald-400">
-              <span className="inline-block size-1.5 rounded-full bg-emerald-400" />
-              Tradable
-            </span>
-          </div>
-
-          <div className="relative flex items-center justify-center overflow-hidden rounded-none border border-border bg-background/40 p-1.5">
-            {item.imageUrl ? (
-              <Image
-                src={item.imageUrl}
-                alt={item.name}
-                width={420}
-                height={260}
-                className={dense ? "h-14 w-auto max-w-full object-contain transition-transform duration-200 group-hover:scale-105" : "h-16 w-auto max-w-full object-contain transition-transform duration-200 group-hover:scale-105"}
-                sizes={dense ? "(min-width: 1024px) 12vw, (min-width: 640px) 24vw, 40vw" : "(min-width: 1024px) 18vw, (min-width: 640px) 36vw, 70vw"}
+      <div ref={rootRef} className="h-full min-h-0">
+        <div
+          className="relative flex h-full min-h-0 w-full flex-col overflow-hidden rounded-none transition-all hover:-translate-y-0.5"
+          style={
+            {
+              contentVisibility: "auto",
+              containIntrinsicSize: `${MARKET_CARD_MIN_WIDTH_PX}px ${MARKET_CARD_INTRINSIC_HEIGHT_PX}px`,
+            } as React.CSSProperties
+          }
+        >
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 z-0 rounded-[inherit] bg-gradient-to-b from-muted/60 to-card dark:hidden"
+          />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 z-0 hidden rounded-[inherit] dark:block"
+            style={{ backgroundImage: MARKET_CARD_RADIAL_BG }}
+          />
+          <div className="relative z-[1] flex size-full min-h-0 flex-col items-start overflow-clip rounded-[inherit]">
+            {/* Frame1 — image block (Frame1984080233) */}
+            <div className="relative aspect-[180/200] w-full shrink-0 rounded-none">
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0 rounded-none border-t-[3px] border-solid"
+                style={
+                  {
+                    borderTopColor: item.rarityColor ?? "#ff3744",
+                  } as React.CSSProperties
+                }
               />
-            ) : (
-              <div className={dense ? "h-16 w-full" : "h-20 w-full"} />
-            )}
+              <div className="flex size-full flex-col items-center justify-center">
+                <div className="relative flex size-full flex-col items-center justify-center gap-[10px] p-[16px]">
+                  <div className="relative aspect-[512/384] w-full shrink-0">
+                    {item.imageUrl ? (
+                      <Image
+                        src={item.imageUrl}
+                        alt={item.name}
+                        fill
+                        className="object-cover transition-transform duration-200 group-hover:scale-105"
+                        sizes="(min-width: 1024px) 18vw, (min-width: 640px) 28vw, 45vw"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 bg-muted/30 dark:bg-background/20" aria-hidden />
+                    )}
+                  </div>
 
-            <span
-              className="absolute top-2 right-2 inline-flex items-center gap-1"
-              aria-label={[
-                item.rarityName ? `Rarity: ${item.rarityName}` : null,
-                isRecent ? "Recently viewed" : null,
-              ]
-                .filter(Boolean)
-                .join(". ")}
-            >
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
+                  {item.hasStatTrak ? (
                     <span
-                      className="inline-block size-2 rounded-full border border-border"
-                      style={item.rarityColor ? ({ backgroundColor: item.rarityColor } as React.CSSProperties) : undefined}
-                      aria-label={item.rarityName ? `Rarity: ${item.rarityName}` : "Rarity"}
-                      role="img"
-                      tabIndex={0}
-                    />
-                  </TooltipTrigger>
-                  {item.rarityName ? (
-                    <TooltipContent side="bottom" align="end">
-                      {item.rarityName}
-                    </TooltipContent>
+                      className="pointer-events-none absolute top-[12px] left-[12px] z-10 rounded-[6px] bg-[#ff7a37] px-2 py-[5px] font-sans text-[12px] font-medium leading-[0.98] tracking-[-0.1px] text-[#f9f9f9]"
+                      title="StatTrak™ available"
+                    >
+                      StatTrak™
+                    </span>
                   ) : null}
-                </Tooltip>
-              </TooltipProvider>
-            </span>
-          </div>
-
-          <div className={dense ? "mt-1.5 space-y-1" : "mt-2 space-y-1"}>
-            <div className="flex items-start justify-between gap-2">
-              <p className="font-mono text-[11px] text-foreground line-clamp-2">{item.name}</p>
-            </div>
-
-            <p className="text-[10px] text-text-secondary">{weaponName}</p>
-            <p className="text-[10px] text-text-muted">
-              {floatMid != null ? `${wearLabelByFloat(floatMid)} · ${floatMid.toFixed(6)}` : "Wear data unavailable"}
-            </p>
-
-            {floatMarkerPercent != null ? (
-              <div className="space-y-1 pt-0.5">
-                <div className="relative h-1.5 overflow-hidden rounded-none bg-border/70">
-                  <div className="absolute inset-y-0 left-0 w-[7%] bg-cyan-400/80" />
-                  <div className="absolute inset-y-0 left-[7%] w-[8%] bg-emerald-400/80" />
-                  <div className="absolute inset-y-0 left-[15%] w-[23%] bg-yellow-400/80" />
-                  <div className="absolute inset-y-0 left-[38%] w-[7%] bg-orange-400/80" />
-                  <div className="absolute inset-y-0 left-[45%] right-0 bg-red-400/70" />
-                  <span
-                    className="absolute top-1/2 h-2 w-0.5 -translate-x-1/2 -translate-y-1/2 bg-white"
-                    style={{ left: `${floatMarkerPercent}%` }}
-                    aria-hidden
-                  />
                 </div>
               </div>
-            ) : null}
+            </div>
 
-            <div className="flex flex-wrap items-center gap-1.5 pt-1">
-              {exteriorChips.map((x) => (
-                <React.Fragment key={x}>{chip(x)}</React.Fragment>
-              ))}
-              {remainingExteriorCount > 0 && chip(`+${remainingExteriorCount}`, "muted")}
-              {item.hasStatTrak && chip("ST")}
-              {item.rarityName && chip(rarityLabel(item.rarityName), "muted")}
+            {/* Frame2 — details (fills remaining height so grid rows align) */}
+            <div className="relative flex min-h-0 w-full flex-1 flex-col">
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0 border-t-[0.5px] border-solid border-[#b8bec8] dark:border-[#202020]"
+              />
+              <div className="relative flex min-h-0 w-full flex-1 flex-col justify-between gap-[16px] py-[16px] pl-[16px] pr-[20px] leading-[0.98]">
+                <div className="flex min-h-0 w-full flex-col gap-[16px]">
+                  <div className="flex w-full min-w-0 flex-col gap-[6px] leading-[0.98]">
+                    <p className="font-sans text-[12px] font-medium tracking-[-0.1px] text-text-muted">
+                      {categoryLabel}
+                    </p>
+
+                    <p className="line-clamp-2 h-fit min-h-0 w-fit max-w-full font-hero-serif text-[16px] font-semibold not-italic leading-[0.98] text-foreground">
+                      {skinTitle}
+                    </p>
+                  </div>
+
+                  <p
+                    className={cn(
+                      "font-hero-serif text-[20px] font-bold not-italic leading-[0.98] tabular-nums whitespace-nowrap",
+                      range ? "text-foreground" : "text-text-muted",
+                    )}
+                    title={range ? "Low–high across markets with a live price" : undefined}
+                  >
+                    {!priceStarted && <span>—</span>}
+                    {priceStarted && priceLoading && <span>…</span>}
+                    {priceStarted && !priceLoading && range && (
+                      <span>
+                        {range.min === range.max
+                          ? formatMoney(range.min, range.currency)
+                          : `${formatMoney(range.min, range.currency)} – ${formatMoney(range.max, range.currency)}`}
+                      </span>
+                    )}
+                    {priceStarted && !priceLoading && !range && priceError && <span>—</span>}
+                    {priceStarted && !priceLoading && !range && !priceError && <span>No live range</span>}
+                  </p>
+                </div>
+
+                <div className="flex w-full min-w-0 shrink-0 flex-col gap-[10px]">
+                  <p className="line-clamp-2 min-h-[2lh] font-sans text-[12px] font-normal not-italic leading-[0.98] text-text-muted">
+                    {wearLine}
+                  </p>
+
+                  <div className="relative h-[6px] w-full min-w-0 shrink-0 overflow-clip bg-border/80 dark:bg-[rgba(40,40,40,0.7)]">
+                      {floatMarkerPercent != null ? (
+                        <>
+                          <div
+                            className="absolute inset-y-0 left-0 bg-[rgba(0,211,243,0.8)]"
+                            style={{ width: "7%" }}
+                          />
+                          <div
+                            className="absolute inset-y-0 bg-[rgba(0,212,146,0.8)]"
+                            style={{ left: "7%", width: "8%" }}
+                          />
+                          <div
+                            className="absolute inset-y-0 bg-[rgba(253,199,0,0.8)]"
+                            style={{ left: "15%", width: "23%" }}
+                          />
+                          <div
+                            className="absolute inset-y-0 bg-[rgba(255,137,3,0.8)]"
+                            style={{ left: "38%", width: "7%" }}
+                          />
+                          <div
+                            className="absolute inset-y-0 bg-[rgba(255,100,103,0.7)]"
+                            style={{ left: "45%", right: 0 }}
+                          />
+                          {floatMinPct != null && floatMaxPct != null ? (
+                            <>
+                              <span
+                                className="absolute top-[-1px] h-[8px] w-[2px] -translate-x-1/2 bg-foreground"
+                                style={{ left: `${floatMinPct}%` }}
+                                aria-hidden
+                              />
+                              <span
+                                className="absolute top-[-1px] h-[8px] w-[2px] -translate-x-1/2 bg-foreground"
+                                style={{ left: `${floatMaxPct}%` }}
+                                aria-hidden
+                              />
+                            </>
+                          ) : (
+                            <span
+                              className="absolute top-[-1px] h-[8px] w-[2px] -translate-x-1/2 bg-foreground"
+                              style={{ left: `${floatMarkerPercent}%` }}
+                              aria-hidden
+                            />
+                          )}
+                        </>
+                      ) : (
+                        <div className="h-[6px]" aria-hidden />
+                      )}
+                    </div>
+                  </div>
+                </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
+
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 z-[2] rounded-none border-[0.5px] border-solid border-[#b8bec8] dark:border-[#202020]"
+          />
+        </div>
+      </div>
     </Link>
   )
 }
-

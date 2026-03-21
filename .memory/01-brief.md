@@ -9,7 +9,7 @@
 2. **Loadouts** — Inventory showcase with shareable public links (gallery/glassmorphism).
 3. **Watchlist** — Target watchlist with marketplace quick-links (tactical HUD).
 - **Market-first**: `/` is a public landing with search + curated browsing entry points.
-- A **Home Dashboard** at `/dashboard` acts as a heads-up display summarizing all three pillars at a glance.
+- A **Command Center** at **`/dashboard`** summarizes all three pillars; **`/`** is the public market-first landing.
 - **Broker-grade UX reference:** Watchlists, P&L (realized + unrealized), and reporting are informed by stock-broker norms (Zerodha, IB, etc.); execution remains out-of-app (link to marketplaces).
 
 ### Success Criteria

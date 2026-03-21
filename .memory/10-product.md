@@ -15,10 +15,10 @@
 1. **Home Landing (`/`):** Market-first landing with search into Market and visual browsing entry points.
 2. **Market (`/market`):** Browse/search catalog with filters; open item detail pages; jump to external marketplaces.
 3. **Market → Actions:** From item detail, route into Watchlist (create target) or Trades (prefill trade) without retyping names.
-4. **Dashboard (`/dashboard`):** At-a-glance summary of all three pillars — career profit, capital at risk, pillar cards with mini-previews and CTAs (post-login in full MVP).
-5. **Trade Links (`/trade-links`):** Log trades (buy/sell with skin name, wear, variant, float, currency, image URL, notes). View career profit, win rate, avg ROI, best/worst flip. Filter trade history. Export CSV.
-6. **Loadouts (`/loadout`):** Build CT + T loadouts in a weapon grid. Search skin name with thumbnail suggestions (auto-fills slot image), see 3D tilt + rarity glow on hover. Save multiple loadouts (Dream, Current, Budget). Share public links.
-7. **Watchlist (`/watchlist`):** Add targets with skin name, wear, variant, price, float range, marketplace links, notes. Mark as acquired → optionally log as trade in Trades.
+4. **Dashboard (`/dashboard`):** At-a-glance summary of all three pillars — career profit, capital at risk, pillar cards with mini-previews and CTAs (AuthGate; implementation evolving toward Supabase metrics).
+5. **Trade Links (`/trade-links`):** Same UI as **Float Flip** (`/float-flip` — re-export). Log trades (Supabase `trades`), metrics, CSV export.
+6. **Loadouts (`/loadout`):** Build CT + T loadouts in a weapon grid. Search skin name with thumbnail suggestions (auto-fills slot image), 3D tilt + rarity glow. **Supabase-only** — user-created loadouts; no localStorage demo or auto-seeded default loadout. Share public links when `is_public`.
+7. **Watchlist (`/watchlist`):** Same UI as **`/sniper`** (re-export). Targets with watchlists (`target_watchlists` / `target_watchlist_items`), `price_alerts`, RLS-safe CRUD.
 8. **Cross-pillar:** Watchlist → Trades (acquired target pre-fills trade form). Loadouts → Watchlist (empty slot → "Add to Watchlist" action).
 
 ### Marketplace Requirements (Prototype)

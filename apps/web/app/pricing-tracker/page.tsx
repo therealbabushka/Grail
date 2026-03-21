@@ -54,8 +54,8 @@ export default function PricingTrackerPage() {
   const donePct = useMemo(() => pct(currentBatch, totalBatches), [currentBatch, totalBatches])
 
   return (
-    <main className="min-h-screen bg-background px-6 py-10 text-foreground">
-      <div className="mx-auto max-w-3xl space-y-6">
+    <main className="min-h-screen w-full min-w-0 bg-background px-10 py-10 text-foreground">
+      <div className="w-full space-y-6">
         <header>
           <h1 className="font-mono text-2xl font-bold tracking-tight">Live pricing tracker</h1>
           <p className="mt-1 text-xs text-text-secondary">
@@ -96,12 +96,12 @@ export default function PricingTrackerPage() {
             </div>
 
             <div className="pt-2">
-              <p className="mb-2 font-mono text-[10px] uppercase tracking-wider text-text-secondary">
+              <p className="mb-2 font-mono text-[12px] uppercase tracking-wider text-text-secondary">
                 Recent
               </p>
               <div className="max-h-72 overflow-auto rounded-none border border-border bg-background/30 p-2">
                 {p?.recent?.length ? (
-                  <ul className="space-y-1 font-mono text-[11px]">
+                  <ul className="space-y-1 font-mono text-[12px]">
                     {p.recent.slice().reverse().slice(0, 30).map((e, idx) => (
                       <li key={`${e.ts}_${idx}`} className="flex gap-2">
                         <span className="text-text-muted tabular-nums">{new Date(e.ts).toLocaleTimeString()}</span>
@@ -110,7 +110,7 @@ export default function PricingTrackerPage() {
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-[11px] text-text-muted">No events yet.</p>
+                  <p className="text-[12px] text-text-muted">No events yet.</p>
                 )}
               </div>
             </div>
@@ -124,8 +124,8 @@ export default function PricingTrackerPage() {
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-none border border-border bg-surface/50 px-2 py-1.5">
-      <span className="text-[11px] text-text-secondary">{label}</span>
-      <span className="font-mono text-[11px] text-foreground tabular-nums">{value}</span>
+      <span className="text-[12px] text-text-secondary">{label}</span>
+      <span className="font-mono text-[12px] text-foreground tabular-nums">{value}</span>
     </div>
   )
 }

@@ -10,7 +10,8 @@
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
-    "catalog:sync": "node ./scripts/sync-steam-catalog.mjs"
+    "catalog:sync": "node ./scripts/sync-steam-catalog.mjs",
+    "pricing:pricempire-sync": "node ./scripts/pricempire-sync.mjs"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",

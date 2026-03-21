@@ -1,17 +1,23 @@
 import Script from "next/script"
-import { Geist, Geist_Mono, JetBrains_Mono } from "next/font/google"
+import { DM_Sans, JetBrains_Mono } from "next/font/google"
 
 import "@workspace/ui/globals.css"
+import { MainContentWidth } from "@/components/main-content-width"
 import { ThemeProvider } from "@/components/theme-provider"
 import { TopTabs } from "@/components/top-tabs"
-import { cn } from "@workspace/ui/lib/utils";
+import { cn } from "@workspace/ui/lib/utils"
 
-const fontSans = Geist({
+const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
-  variable: "--font-sans",
+  variable: "--font-jetbrains-mono",
+  display: "swap",
 })
 
-const jetbrainsMono = JetBrains_Mono({subsets:['latin'],variable:'--font-mono'})
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  variable: "--font-dm-sans",
+  display: "swap",
+})
 
 export default function RootLayout({
   children,
@@ -22,10 +28,13 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={cn("antialiased", fontSans.variable, jetbrainsMono.variable)}
+      className={cn("min-h-full min-w-0 antialiased", jetbrainsMono.variable, dmSans.variable)}
     >
-      <body className="font-sans">
-        <Script src="https://mcp.figma.com/mcp/html-to-design/capture.js" strategy="afterInteractive" />
+      <body className="min-w-0 w-full font-sans">
+        {/* Figma html-to-design injects inspector UI (borders/overlays). Opt-in so normal reloads stay clean. */}
+        {process.env.NEXT_PUBLIC_FIGMA_HTML_CAPTURE === "1" ? (
+          <Script src="https://mcp.figma.com/mcp/html-to-design/capture.js" strategy="afterInteractive" />
+        ) : null}
         <ThemeProvider>
           <a
             href="#main"
@@ -34,7 +43,9 @@ export default function RootLayout({
             Skip to main content
           </a>
           <TopTabs />
-          <div id="main">{children}</div>
+          <div id="main" className="min-w-0 w-full">
+            <MainContentWidth>{children}</MainContentWidth>
+          </div>
         </ThemeProvider>
       </body>
     </html>

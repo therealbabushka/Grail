@@ -4,8 +4,12 @@ import { createServerClient } from "@supabase/ssr"
 // Ensure Next doesn't try to optimize this route in a way that breaks auth cookie handling.
 export const dynamic = "force-dynamic"
 
-function getSafeNextTarget(_next: string | null | undefined) {
-  // Per requirement: always go to homepage after successful auth.
+function getSafeNextTarget(next: string | null | undefined) {
+  const trimmed = (next ?? "").trim()
+  // Security: only allow same-origin path redirects (no protocol / host).
+  // We expect `next` to be something like `/market?id=...`.
+  if (!trimmed) return "/"
+  if (trimmed.startsWith("/") && !trimmed.startsWith("//")) return trimmed
   return "/"
 }
 

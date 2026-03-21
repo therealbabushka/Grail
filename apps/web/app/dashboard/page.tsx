@@ -66,8 +66,8 @@ export default function DashboardPage() {
 
   return (
     <AuthGate subtitle="Sign in to sync your dashboard data to your account.">
-      <main className="min-h-screen bg-background px-6 py-10 text-foreground">
-        <div className="mx-auto flex max-w-6xl flex-col gap-10">
+      <main className="min-h-screen w-full min-w-0 bg-background px-10 py-10 text-foreground">
+        <div className="flex w-full flex-col gap-10">
         {/* Hero header */}
         <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div className="space-y-2">
@@ -100,7 +100,7 @@ export default function DashboardPage() {
           <Card>
             <CardHeader className="flex flex-row items-end justify-between gap-4 border-border">
               <div>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-text-secondary">
+                <p className="text-[12px] uppercase tracking-[0.2em] text-text-secondary">
                   Career Profit (Realized)
                 </p>
                 <p
@@ -116,7 +116,7 @@ export default function DashboardPage() {
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-text-secondary">
+                <p className="text-[12px] uppercase tracking-[0.2em] text-text-secondary">
                   Capital at Risk
                 </p>
                 <p className="font-mono text-sm text-text-muted">
@@ -147,13 +147,13 @@ export default function DashboardPage() {
                 helper="Tracked in Trades"
               />
             </CardContent>
-            <CardFooter className="justify-between border-border text-[11px] text-text-muted">
+            <CardFooter className="justify-between border-border text-[12px] text-text-muted">
               <span>
                 {stats.closedPositions === 0
                   ? "These numbers will light up as you log trades."
                   : "Metrics update as you log trades."}
               </span>
-            <Link href="/trade-links" className="font-mono text-[11px] text-info">
+            <Link href="/trade-links" className="font-mono text-[12px] text-info">
                 Log a trade →
               </Link>
             </CardFooter>
@@ -171,15 +171,15 @@ export default function DashboardPage() {
               <SummaryRow label="Active sniper targets" value={String(activeTargets)} />
               <SummaryRow label="Loadouts" value={String(loadouts.length)} />
               <div className="pt-2">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-text-secondary">
+                <p className="text-[12px] uppercase tracking-[0.2em] text-text-secondary">
                   Equity curve (realized)
                 </p>
                 <p className="mt-1 font-mono text-sm text-foreground">{spark || "—"}</p>
-                <p className="mt-1 text-[11px] text-text-muted">
+                <p className="mt-1 text-[12px] text-text-muted">
                   {equityCurve.length ? `Latest: ${formatMoney(equityCurve[equityCurve.length - 1]!.equity, currency)}` : "No closed trades yet."}
                 </p>
               </div>
-              <p className="pt-1 text-[11px] text-text-muted">
+              <p className="pt-1 text-[12px] text-text-muted">
                 Demo mode — data is stored in this browser only.
               </p>
             </CardContent>
@@ -244,11 +244,11 @@ function MetricBlock({
 }) {
   return (
     <div className="space-y-1">
-      <p className="text-[10px] uppercase tracking-[0.2em] text-text-secondary">
+      <p className="text-[12px] uppercase tracking-[0.2em] text-text-secondary">
         {label}
       </p>
       <p className="font-mono text-lg font-semibold text-foreground">{value}</p>
-      <p className="text-[11px] text-text-muted">{helper}</p>
+      <p className="text-[12px] text-text-muted">{helper}</p>
     </div>
   )
 }
@@ -256,7 +256,7 @@ function MetricBlock({
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-[11px] text-text-secondary">{label}</span>
+      <span className="text-[12px] text-text-secondary">{label}</span>
       <span className="font-mono text-xs text-foreground">{value}</span>
     </div>
   )
@@ -281,7 +281,7 @@ function PillarCard({
     <Card>
       <CardHeader className="space-y-2">
         <div className="inline-flex items-center gap-2">
-          <span className="rounded-full bg-accent-muted px-2 py-0.5 text-[10px] font-mono text-text-secondary">
+          <span className="rounded-full bg-accent-muted px-2 py-0.5 text-[12px] font-mono text-text-secondary">
             {badge}
           </span>
         </div>
@@ -293,7 +293,7 @@ function PillarCard({
         </CardDescription>
       </CardHeader>
       <CardContent className="mt-1 flex-1">
-        <ul className="space-y-1.5 text-[11px] text-text-secondary">
+        <ul className="space-y-1.5 text-[12px] text-text-secondary">
           {bullets.map((item) => (
             <li key={item} className="flex gap-2">
               <span className="mt-[3px] h-1 w-1 rounded-full bg-border" />
@@ -303,12 +303,12 @@ function PillarCard({
         </ul>
       </CardContent>
       <CardFooter className="flex items-center justify-between border-border">
-        <p className="text-[11px] text-text-muted">
+        <p className="text-[12px] text-text-muted">
           Demo mode — wired to local data.
         </p>
         <Link href={href} passHref legacyBehavior>
           <Button size="sm" asChild>
-            <a className="font-mono text-[11px] tracking-wide">{ctaLabel} →</a>
+            <a className="font-mono text-[12px] tracking-wide">{ctaLabel} →</a>
           </Button>
         </Link>
       </CardFooter>

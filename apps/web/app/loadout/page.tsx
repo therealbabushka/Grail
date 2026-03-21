@@ -26,8 +26,6 @@ import { createClient as createBrowserClient } from "@/lib/supabase/browser"
 
 import { AuthGate } from "@/components/auth-gate"
 
-const DEMO_STORAGE_KEY = "grail.demo.loadouts.v2"
-
 const RARITIES = [
   "consumer",
   "industrial",
@@ -102,11 +100,6 @@ type UiLoadout = {
   isPublic: boolean
   updatedAt: string
   slots: Record<string, LoadoutSlot>
-}
-
-type PersistedDemoState = {
-  loadouts: UiLoadout[]
-  activeLoadoutId: string | null
 }
 
 type SkinSuggestion = {
@@ -231,16 +224,6 @@ function toUiLoadout(record: {
   }
 }
 
-function newDemoLoadout(name: string): UiLoadout {
-  return {
-    id: `loadout_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`,
-    name,
-    isPublic: false,
-    updatedAt: new Date().toISOString(),
-    slots: defaultSlots(),
-  }
-}
-
 function SlotCard({
   slot,
   onEdit,
@@ -257,7 +240,7 @@ function SlotCard({
 
   return (
     <Card
-      className={`group relative overflow-hidden border-border bg-surface transition-all ${
+      className={`group relative overflow-hidden bg-surface transition-all dark:bg-[radial-gradient(ellipse_120%_90%_at_50%_0%,#1a1a1a_0%,#0f0f0f_64%)] ${
         prefersReducedMotion ? "" : "hover:shadow-lg"
       }`}
       style={
@@ -290,16 +273,16 @@ function SlotCard({
           />
         ) : (
           <div className="flex h-14 w-14 items-center justify-center rounded border border-border bg-background/50">
-            <span className="font-mono text-[10px] text-text-muted">
+            <span className="font-mono text-[12px] text-text-muted">
               {slot.weaponLabel.slice(0, 6)}
             </span>
           </div>
         )}
-        <span className="max-w-full line-clamp-1 font-mono text-[10px] text-foreground">
+        <span className="max-w-full line-clamp-1 font-mono text-[12px] text-foreground">
           {slot.skinName ?? slot.weaponLabel}
         </span>
         {slot.floatValue != null && (
-          <span className="font-mono text-[9px] tabular-nums text-text-muted">
+          <span className="font-mono text-[12px] tabular-nums text-text-muted">
             {slot.floatValue.toFixed(4)}
           </span>
         )}
@@ -325,7 +308,6 @@ function SlotCard({
 }
 
 export default function LoadoutPage() {
-  const [mode, setMode] = useState<"demo" | "remote">("demo")
   const [supabaseReady, setSupabaseReady] = useState(false)
   const [loadouts, setLoadouts] = useState<UiLoadout[]>([])
   const [activeLoadoutId, setActiveLoadoutId] = useState<string | null>(null)
@@ -347,11 +329,6 @@ export default function LoadoutPage() {
     [loadouts, activeLoadoutId],
   )
 
-  const persistDemo = useCallback((nextLoadouts: UiLoadout[], nextActiveId: string | null) => {
-    const payload: PersistedDemoState = { loadouts: nextLoadouts, activeLoadoutId: nextActiveId }
-    window.localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(payload))
-  }, [])
-
   const refreshRemoteLoadouts = useCallback(async () => {
     const supabase = createBrowserClient()
     if (!supabase) return
@@ -366,20 +343,8 @@ export default function LoadoutPage() {
     if (error) throw error
     const mapped = (data ?? []).map(toUiLoadout)
     if (mapped.length === 0) {
-      const { data: created, error: insertError } = await supabase
-        .from("loadouts")
-        .insert({
-          user_id: user.id,
-          name: "Dream",
-          is_public: false,
-          slots: serializeSlots(defaultSlots()),
-        })
-        .select("id, name, is_public, updated_at, slots")
-        .single()
-      if (insertError) throw insertError
-      const first = toUiLoadout(created)
-      setLoadouts([first])
-      setActiveLoadoutId(first.id)
+      setLoadouts([])
+      setActiveLoadoutId(null)
       return
     }
     setLoadouts(mapped)
@@ -391,13 +356,9 @@ export default function LoadoutPage() {
     async function init() {
       const supabase = createBrowserClient()
       if (!supabase) {
-        const raw = window.localStorage.getItem(DEMO_STORAGE_KEY)
-        const parsed = raw ? (JSON.parse(raw) as PersistedDemoState | null) : null
-        const seed = parsed?.loadouts?.length ? parsed.loadouts : [newDemoLoadout("Dream")]
         if (!cancelled) {
-          setMode("demo")
-          setLoadouts(seed)
-          setActiveLoadoutId(parsed?.activeLoadoutId ?? seed[0]?.id ?? null)
+          setLoadouts([])
+          setActiveLoadoutId(null)
           setSupabaseReady(true)
         }
         return
@@ -408,13 +369,9 @@ export default function LoadoutPage() {
       } = await supabase.auth.getUser()
 
       if (!user) {
-        const raw = window.localStorage.getItem(DEMO_STORAGE_KEY)
-        const parsed = raw ? (JSON.parse(raw) as PersistedDemoState | null) : null
-        const seed = parsed?.loadouts?.length ? parsed.loadouts : [newDemoLoadout("Dream")]
         if (!cancelled) {
-          setMode("demo")
-          setLoadouts(seed)
-          setActiveLoadoutId(parsed?.activeLoadoutId ?? seed[0]?.id ?? null)
+          setLoadouts([])
+          setActiveLoadoutId(null)
           setSupabaseReady(true)
         }
         return
@@ -423,15 +380,13 @@ export default function LoadoutPage() {
       try {
         await refreshRemoteLoadouts()
         if (!cancelled) {
-          setMode("remote")
           setSupabaseReady(true)
         }
       } catch {
-        const fallback = [newDemoLoadout("Dream")]
         if (!cancelled) {
-          setMode("demo")
-          setLoadouts(fallback)
-          setActiveLoadoutId(fallback[0]?.id ?? null)
+          setToast("Could not load loadouts.")
+          setLoadouts([])
+          setActiveLoadoutId(null)
           setSupabaseReady(true)
         }
       }
@@ -527,11 +482,6 @@ export default function LoadoutPage() {
   const persistLoadout = useCallback(
     async (nextLoadout: UiLoadout) => {
       setLoadouts((prev) => prev.map((l) => (l.id === nextLoadout.id ? nextLoadout : l)))
-      if (mode === "demo") {
-        const next = loadouts.map((l) => (l.id === nextLoadout.id ? nextLoadout : l))
-        persistDemo(next, activeLoadoutId)
-        return
-      }
       const supabase = createBrowserClient()
       if (!supabase) return
       const { error } = await supabase
@@ -547,7 +497,7 @@ export default function LoadoutPage() {
         await refreshRemoteLoadouts()
       }
     },
-    [mode, loadouts, activeLoadoutId, persistDemo, refreshRemoteLoadouts],
+    [refreshRemoteLoadouts],
   )
 
   const saveSlot = useCallback(async () => {
@@ -600,17 +550,6 @@ export default function LoadoutPage() {
     const name = createName.trim()
     if (!name) return
     setIsSaving(true)
-    if (mode === "demo") {
-      const created = newDemoLoadout(name)
-      const next = [created, ...loadouts]
-      setLoadouts(next)
-      setActiveLoadoutId(created.id)
-      persistDemo(next, created.id)
-      setCreateName("")
-      setCreateDialogOpen(false)
-      setIsSaving(false)
-      return
-    }
     const supabase = createBrowserClient()
     if (!supabase) {
       setIsSaving(false)
@@ -645,7 +584,7 @@ export default function LoadoutPage() {
     setCreateName("")
     setCreateDialogOpen(false)
     setIsSaving(false)
-  }, [createName, mode, loadouts, persistDemo])
+  }, [createName])
 
   const renameActiveLoadout = useCallback(async () => {
     if (!activeLoadout) return
@@ -688,36 +627,32 @@ export default function LoadoutPage() {
     window.location.href = `/watchlist${search}`
   }, [])
 
-  if (!supabaseReady) {
-    return (
-      <main className="min-h-screen bg-background px-6 py-10 text-foreground">
-        <div className="mx-auto max-w-6xl">
-          <p className="text-sm text-text-muted">Loading loadouts…</p>
-        </div>
-      </main>
-    )
-  }
-
-  if (!activeLoadout) {
-    return (
-      <main className="min-h-screen bg-background px-6 py-10 text-foreground">
-        <div className="mx-auto max-w-6xl">
-          <p className="text-sm text-text-muted">No loadouts available yet.</p>
-        </div>
-      </main>
-    )
-  }
-
   return (
     <AuthGate subtitle="Login to proceed">
-      <main className="min-h-screen bg-background px-6 py-10 text-foreground">
-        <div className="mx-auto max-w-6xl space-y-6">
+      <main className="min-h-screen w-full min-w-0 bg-background px-10 py-10 text-foreground">
+        {!supabaseReady && (
+          <div className="w-full">
+            <p className="text-sm text-text-muted">Loading loadouts…</p>
+          </div>
+        )}
+
+        {supabaseReady && !activeLoadout && (
+          <div className="w-full space-y-4">
+            <h1 className="font-mono text-2xl font-bold tracking-tight">Loadouts</h1>
+            <p className="text-sm text-text-muted">
+              No loadouts yet. Create one to start building your CT/T grid.
+            </p>
+            <Button onClick={() => setCreateDialogOpen(true)}>New loadout</Button>
+          </div>
+        )}
+
+        {supabaseReady && activeLoadout && (
+        <div className="w-full space-y-6">
         <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <h1 className="font-mono text-2xl font-bold tracking-tight">Loadouts</h1>
             <p className="text-xs text-text-secondary">
-              {activeLoadout.name} · {activeLoadout.isPublic ? "Public" : "Private"} ·{" "}
-              {mode === "remote" ? "Cloud" : "Demo"}
+              {activeLoadout.name} · {activeLoadout.isPublic ? "Public" : "Private"} · Cloud
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -727,7 +662,6 @@ export default function LoadoutPage() {
                 onChange={(e) => {
                   const nextId = e.target.value
                   setActiveLoadoutId(nextId)
-                  if (mode === "demo") persistDemo(loadouts, nextId)
                 }}
                 className="h-8 appearance-none rounded-none border border-input bg-background pl-3 pr-8 font-mono text-xs"
                 aria-label="Active loadout"
@@ -773,14 +707,6 @@ export default function LoadoutPage() {
           </div>
         </header>
 
-        {mode === "demo" && (
-          <Card className="border-info/40 bg-info/5">
-            <CardContent className="py-3 text-xs text-foreground">
-              Demo mode: sign in to sync loadouts to your account. Changes you make here are not saved to Supabase yet.
-            </CardContent>
-          </Card>
-        )}
-
         <Card>
           <CardHeader>
             <CardTitle className="font-mono text-sm">CT / T grid</CardTitle>
@@ -791,7 +717,7 @@ export default function LoadoutPage() {
           <CardContent>
             <div className="grid gap-8 md:grid-cols-2">
               <div>
-                <p className="mb-3 font-mono text-[10px] uppercase tracking-wider text-text-secondary">
+                <p className="mb-3 font-mono text-[12px] uppercase tracking-wider text-text-secondary">
                   CT
                 </p>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -810,7 +736,7 @@ export default function LoadoutPage() {
                 </div>
               </div>
               <div>
-                <p className="mb-3 font-mono text-[10px] uppercase tracking-wider text-text-secondary">
+                <p className="mb-3 font-mono text-[12px] uppercase tracking-wider text-text-secondary">
                   T
                 </p>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -832,7 +758,10 @@ export default function LoadoutPage() {
           </CardContent>
         </Card>
       </div>
+        )}
 
+      {supabaseReady && (
+      <>
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
         <DialogContent className="max-w-md gap-4">
           <DialogHeader>
@@ -873,7 +802,7 @@ export default function LoadoutPage() {
             className="font-mono"
           />
           {!renameValue.trim() && (
-            <p className="text-[11px] text-danger">Name is required.</p>
+            <p className="text-[12px] text-danger">Name is required.</p>
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setRenameDialogOpen(false)}>
@@ -889,6 +818,7 @@ export default function LoadoutPage() {
         </DialogContent>
       </Dialog>
 
+      {activeLoadout && (
       <Dialog open={Boolean(editingSlotKey)} onOpenChange={(open) => !open && closeEditor()}>
         <DialogContent className="max-w-md gap-4">
           <DialogHeader>
@@ -901,7 +831,7 @@ export default function LoadoutPage() {
           </DialogHeader>
           <div className="grid gap-3 text-xs">
             <div className="relative">
-              <label className="mb-1 block font-mono text-[10px] uppercase text-text-secondary">
+              <label className="mb-1 block font-mono text-[12px] uppercase text-text-secondary">
                 Skin name
               </label>
               <Input
@@ -943,21 +873,21 @@ export default function LoadoutPage() {
                       )}
                       <div className="min-w-0">
                         <p className="truncate font-mono text-xs text-foreground">{skin.name}</p>
-                        <p className="truncate font-mono text-[10px] uppercase text-text-secondary">
+                        <p className="truncate font-mono text-[12px] uppercase text-text-secondary">
                           {skin.rarity ?? "unknown"}
                         </p>
                       </div>
                     </button>
                   ))}
                   {isSearchingSkins && (
-                    <p className="px-2 py-2 font-mono text-[10px] text-text-secondary">Searching…</p>
+                    <p className="px-2 py-2 font-mono text-[12px] text-text-secondary">Searching…</p>
                   )}
                 </div>
               )}
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="mb-1 block font-mono text-[10px] uppercase text-text-secondary">
+                <label className="mb-1 block font-mono text-[12px] uppercase text-text-secondary">
                   Float
                 </label>
                 <Input
@@ -976,7 +906,7 @@ export default function LoadoutPage() {
                 />
               </div>
               <div>
-                <label className="mb-1 block font-mono text-[10px] uppercase text-text-secondary">
+                <label className="mb-1 block font-mono text-[12px] uppercase text-text-secondary">
                   Price paid
                 </label>
                 <Input
@@ -995,7 +925,7 @@ export default function LoadoutPage() {
               </div>
             </div>
             <div>
-              <label className="mb-1 block font-mono text-[10px] uppercase text-text-secondary">
+              <label className="mb-1 block font-mono text-[12px] uppercase text-text-secondary">
                 Rarity
               </label>
               <select
@@ -1034,6 +964,10 @@ export default function LoadoutPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      )}
+
+      </>
+      )}
 
       {toast && (
         <div className="fixed bottom-4 right-4 rounded-none border border-border bg-background px-3 py-2 font-mono text-xs text-foreground shadow-lg">

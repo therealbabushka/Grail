@@ -15,7 +15,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 
 const TIMEFRAME = "1d" as const
 const CANDLES_MAX = 400
-const ALL_MARKETS = ["steam", "skinport", "bitskins", "csfloat", "buff163", "dmarket", "waxpeer"] as const
+const ALL_MARKETS = ["steam", "skinport", "bitskins", "csfloat", "csmoney", "dmarket", "waxpeer"] as const
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)

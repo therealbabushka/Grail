@@ -1,4 +1,7 @@
 import { bitskinsV2Get } from "@/lib/pricing/bitskins-v2"
+import { buildMarketplaceLinks } from "@/lib/pricing/marketplace-links"
+
+export { buildMarketplaceLinks }
 
 type MoneyLike = unknown
 
@@ -337,17 +340,230 @@ export async function fetchBitskinsPricing(itemName: string, apiKey?: string, ap
   }
 }
 
-export function buildMarketplaceLinks(params: { itemName: string; marketHashName: string }) {
-  const encodedItem = encodeURIComponent(params.itemName)
-  const encodedHash = encodeURIComponent(params.marketHashName)
-  return {
-    steam: `https://steamcommunity.com/market/listings/730/${encodedHash}`,
-    skinport: `https://skinport.com/market?search=${encodedHash}`,
-    csfloat: `https://csfloat.com/search?q=${encodedHash}`,
-    buff163: `https://buff.163.com/market/csgo#tab=selling&page_num=1&search=${encodedHash}`,
-    bitskins: `https://bitskins.com/?market_hash_name=${encodedHash}`,
-    dmarket: `https://dmarket.com/ingame-items/item-list/csgo-skins?title=${encodedItem}`,
-    waxpeer: `https://waxpeer.com/?search=${encodedHash}`,
+const EXTERIOR_SLUG: Record<string, string> = {
+  "factory new": "factory-new",
+  "minimal wear": "minimal-wear",
+  "field-tested": "field-tested",
+  "well-worn": "well-worn",
+  "battle-scarred": "battle-scarred",
+}
+
+function extractExteriorFromHashName(marketHashName: string): string | null {
+  const m = marketHashName.match(/\((Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)\)\s*$/i)
+  if (!m) return null
+  return m[1]!.toLowerCase()
+}
+
+function stripExteriorSuffix(marketHashName: string): string {
+  return marketHashName.replace(/\s*\((Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)\)\s*$/i, "").trim()
+}
+
+async function fetchDmarketPricing(marketHashName: string): Promise<MarketSnapshot> {
+  const wantedExterior = extractExteriorFromHashName(marketHashName)
+  const baseName = stripExteriorSuffix(marketHashName)
+
+  const url = new URL("https://api.dmarket.com/exchange/v1/market/items")
+  url.searchParams.set("gameId", "a8db")
+  url.searchParams.set("title", baseName)
+  url.searchParams.set("limit", "50")
+  url.searchParams.set("orderBy", "best_price")
+  url.searchParams.set("orderDir", "asc")
+  url.searchParams.set("currency", "USD")
+
+  try {
+    const res = await fetch(url.toString(), {
+      headers: {
+        "User-Agent": "Grail/1.0 (+market cockpit)",
+        "Accept-Encoding": "gzip",
+      },
+      cache: "no-store",
+    })
+    if (!res.ok) return { market: "dmarket", price: null, volume24h: null, raw: { status: res.status } }
+    const json = (await res.json()) as any
+    const objects: any[] = Array.isArray(json?.objects) ? json.objects : []
+
+    const matching = wantedExterior
+      ? objects.filter((o) => {
+          const ext = (o?.extra?.exterior ?? "").toLowerCase()
+          return ext === wantedExterior || ext === EXTERIOR_SLUG[wantedExterior]
+        })
+      : objects.filter((o) => !o?.extra?.exterior)
+
+    const source = matching.length ? matching : objects
+    const prices = source
+      .map((o) => {
+        const cents = parseInt(String(o?.price?.USD ?? ""), 10)
+        return Number.isFinite(cents) && cents > 0 ? cents / 100 : null
+      })
+      .filter((n): n is number => n !== null)
+
+    const price = prices.length ? Math.min(...prices) : null
+    return { market: "dmarket", price, volume24h: null, raw: { matched: matching.length, total: objects.length } }
+  } catch (err) {
+    return { market: "dmarket", price: null, volume24h: null, raw: { error: String(err) } }
+  }
+}
+
+function extractCsmoneySellOrderRows(body: unknown): any[] {
+  if (Array.isArray(body)) return body
+  const o = body as Record<string, unknown> | null
+  if (!o || typeof o !== "object") return []
+  for (const k of ["items", "orders", "data", "sellOrders", "sell_orders", "list", "results", "payload"]) {
+    const v = o[k]
+    if (Array.isArray(v)) return v
+  }
+  return []
+}
+
+/**
+ * CS.MONEY sell-orders JSON mixes: USD floats, cent integers (often 5+ digits), and whole-dollar ints.
+ * Floats → USD. Integers ≥1000 → cents/100. Integers 100–999 → whole USD (e.g. 658 → $658) to avoid
+ * misreading $600+ skins as cents. Integers &lt;100 → cents/100.
+ */
+function csmoneyUsdFromRaw(raw: unknown): number | null {
+  if (typeof raw === "string") {
+    const n = Number(String(raw).replace(/[^0-9.]/g, ""))
+    return csmoneyUsdFromRaw(Number.isFinite(n) ? n : NaN)
+  }
+  if (typeof raw !== "number" || !Number.isFinite(raw) || raw <= 0) return null
+  if (!Number.isInteger(raw)) return raw
+  if (raw >= 1000) return raw / 100
+  if (raw >= 100 && raw <= 999) return raw
+  return raw / 100
+}
+
+function csmoneyPriceFromOrder(o: any): number | null {
+  const candidates = [
+    o?.price,
+    o?.usdPrice,
+    o?.usd_price,
+    o?.priceUsd,
+    o?.priceUSD,
+    o?.price_usd,
+    o?.totalPrice,
+    o?.listingPrice,
+    o?.minPrice,
+    o?.amount,
+    o?.p,
+    o?.offer?.price,
+    o?.listing?.price,
+    o?.item?.price,
+    o?.goods?.price,
+  ]
+  for (const c of candidates) {
+    const n = csmoneyUsdFromRaw(c)
+    if (n != null) return n
+  }
+  return null
+}
+
+/** Pull dollar floats the API may expose next to price-like keys (most reliable for USD). */
+function extractCsmoneyFloatUsdFromJsonText(text: string): number[] {
+  const out: number[] = []
+  const re =
+    /"(?:price|minPrice|amount|usdPrice|priceUsd|price_usd|priceUSD|realPrice|totalPrice|listingPrice)"\s*:\s*([0-9]+\.[0-9]{1,4})\b/gi
+  let m: RegExpExecArray | null
+  while ((m = re.exec(text)) !== null) {
+    const n = Number(m[1])
+    if (Number.isFinite(n) && n > 0 && n < 1_000_000) out.push(n)
+  }
+  return out
+}
+
+/** Large integer cents (e.g. 65851) when floats are not present in the payload. */
+function extractCsmoneyLargeCentIntsFromJsonText(text: string): number[] {
+  const out: number[] = []
+  const re =
+    /"(?:price|minPrice|amount|usdPrice|priceUsd|price_usd|priceUSD|realPrice|totalPrice|listingPrice)"\s*:\s*([0-9]{5,12})\b/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(text)) !== null) {
+    const n = Number(m[1])
+    if (Number.isFinite(n) && n >= 10_000) out.push(n / 100)
+  }
+  return out
+}
+
+async function fetchCsmoneyPricing(marketHashName: string, buyPageUrl: string): Promise<MarketSnapshot> {
+  const url = new URL("https://cs.money/2.0/market/sell-orders")
+  url.searchParams.set("limit", "60")
+  url.searchParams.set("offset", "0")
+  url.searchParams.set("name", marketHashName)
+
+  try {
+    const res = await fetch(url.toString(), {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        Accept: "application/json, text/plain, */*",
+        "Accept-Language": "en-US,en;q=0.9",
+        Referer: "https://cs.money/market/buy/",
+        Origin: "https://cs.money",
+      },
+      cache: "no-store",
+    })
+    const text = await res.text()
+
+    if (!res.ok) {
+      return scrapeMarketPrice("csmoney", buyPageUrl)
+    }
+
+    let json: unknown
+    try {
+      json = JSON.parse(text) as unknown
+    } catch {
+      return scrapeMarketPrice("csmoney", buyPageUrl)
+    }
+
+    const rows = extractCsmoneySellOrderRows(json)
+    const fromRows = rows.map((row) => csmoneyPriceFromOrder(row)).filter((n): n is number => n != null && Number.isFinite(n))
+    const fromFloats = extractCsmoneyFloatUsdFromJsonText(text)
+    const fromBigCents = extractCsmoneyLargeCentIntsFromJsonText(text)
+    const merged = [...fromRows, ...fromFloats, ...fromBigCents].filter((n) => n > 0 && n < 1_000_000)
+    const price = merged.length ? Math.min(...merged) : null
+
+    return {
+      market: "csmoney",
+      price,
+      volume24h: null,
+      raw: {
+        api: "csmoney_sell_orders",
+        status: res.status,
+        rowCount: rows.length,
+        priceCount: merged.length,
+      },
+    }
+  } catch {
+    return scrapeMarketPrice("csmoney", buyPageUrl)
+  }
+}
+
+async function fetchWaxpeerPricing(marketHashName: string): Promise<MarketSnapshot> {
+  const url = new URL("https://api.waxpeer.com/v1/prices")
+  url.searchParams.set("game", "csgo")
+  url.searchParams.set("search", marketHashName)
+  url.searchParams.set("single", "1")
+
+  try {
+    const res = await fetch(url.toString(), {
+      headers: { "User-Agent": "Grail/1.0 (+market cockpit)" },
+      cache: "no-store",
+    })
+    if (!res.ok) return { market: "waxpeer", price: null, volume24h: null, raw: { status: res.status } }
+    const json = (await res.json()) as any
+    const items: any[] = Array.isArray(json?.items) ? json.items : []
+
+    // Find exact market_hash_name match
+    const match = items.find((i) => i?.name?.toLowerCase() === marketHashName.toLowerCase()) ?? items[0]
+    if (!match) return { market: "waxpeer", price: null, volume24h: null, raw: { found: 0 } }
+
+    // Waxpeer returns prices in units of 1/1000 USD
+    const rawMin = match.min
+    const price = typeof rawMin === "number" && rawMin > 0 ? rawMin / 1000 : null
+    const volume24h = typeof match.count === "number" ? match.count : null
+
+    return { market: "waxpeer", price, volume24h, raw: match }
+  } catch (err) {
+    return { market: "waxpeer", price: null, volume24h: null, raw: { error: String(err) } }
   }
 }
 
@@ -361,14 +577,14 @@ export async function fetchAllMarketSnapshots(params: {
   const { itemName, marketHashName, currency, bitskinsApiKey, bitskinsSecret } = params
   const links = buildMarketplaceLinks({ itemName, marketHashName })
 
-  const [steam, skinportSummary, bitskins, csfloat, buff163, dmarket, waxpeer] = await Promise.all([
+  const [steam, skinportSummary, bitskins, csfloat, csmoney, dmarket, waxpeer] = await Promise.all([
     fetchSteamPriceOverview(marketHashName),
     fetchSkinportHistorySummary(marketHashName, currency),
     fetchBitskinsPricing(marketHashName, bitskinsApiKey, bitskinsSecret),
     scrapeMarketPrice("csfloat", links.csfloat),
-    scrapeMarketPrice("buff163", links.buff163),
-    scrapeMarketPrice("dmarket", links.dmarket),
-    scrapeMarketPrice("waxpeer", links.waxpeer),
+    fetchCsmoneyPricing(marketHashName, links.csmoney),
+    fetchDmarketPricing(marketHashName),
+    fetchWaxpeerPricing(marketHashName),
   ])
 
   const skinportSnap = skinportSnapshotFromSummary(skinportSummary.summary)
@@ -377,7 +593,7 @@ export async function fetchAllMarketSnapshots(params: {
     { market: "skinport", price: skinportSnap.price, volume24h: skinportSnap.volume24h, raw: skinportSummary.raw },
     { market: "bitskins", price: bitskins.price, volume24h: bitskins.volume24h, raw: bitskins.raw },
     csfloat,
-    buff163,
+    csmoney,
     dmarket,
     waxpeer,
   ]

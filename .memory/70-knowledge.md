@@ -5,10 +5,11 @@
 - Grail pillars: Trades (P&L and trade tracking), Loadouts (inventory visualization and sharing), Watchlist (target watchlist).
 
 ### Relationship Map (High Level)
-- Watchlist targets can be converted into Trades when acquired.
+- Watchlist targets can be converted into Trades when acquired (link to `/trade-links` with query params).
 - Loadouts slots reference skins and rarity information, potentially using the static `items` database for metadata.
 - Profiles define user-level preferences such as display currency.
 - Market-first loop: Browse in `/market` → route into Watchlist/Trades via prefilled CTAs.
+- **URLs:** `/trade-links` = `/float-flip`; `/watchlist` = `/sniper` (thin re-export pages).
 
 ### Key Resources
 - `SPEC.md` — canonical product and technical specification.
@@ -18,7 +19,7 @@
 - Follow the visual/UX guidance, typography choices, and interaction patterns defined in `SPEC.md` and the current implementation (e.g., `globals.css`, design system page).
 - Consult `/.impeccable.md` for persistent design context (brand personality, design principles, a11y target, motion guidelines).
 - Apply the 5 design principles on every UI change: signal over decoration, premium restraint, tactical clarity, semantic color discipline, accessible by default.
-- Respect RLS policies and use Server Actions for mutations.
+- Respect RLS policies; pillar mutations use the Supabase browser client with `auth.uid()` policies (not all flows use Server Actions).
 - Prefer composable shadcn/ui components and shared UI primitives in `packages/ui`.
 - For market detail pricing visuals, keep chart scope and colors config-driven (e.g., `CHART_MARKETS`, `MARKET_COLORS`) so adding new marketplace APIs only requires provider + config updates.
 - For loadout slot editing, prefer skin-name autocomplete suggestions with thumbnails from `items`/catalog data; auto-fill image and optional rarity rather than accepting manual image URL.

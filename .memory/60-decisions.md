@@ -9,7 +9,9 @@ All key decisions are resolved and locked. Canonical source: `SPEC.md` § Resolv
 | Scope | All 3 pillars, equal priority, no feature cuts | Core value requires all three tools |
 | Onboarding | Home Dashboard empty states as onboarding | No separate modal/wizard; each pillar card has a zero-state CTA |
 | Pagination | Infinite scroll for trades; load all for targets/loadouts | Trades can grow large; targets/loadouts are bounded per user |
-| Market-first IA | `/` is public landing; `/market*` public; `/dashboard` protected | Match CS2 trading mental model: browse first, then execute |
+| Market-first IA | `/` is public landing; `/market*` public; `/dashboard` is command center (AuthGate) | Match CS2 trading mental model: browse first, then execute |
+| Route aliases | `/trade-links` → `float-flip`; `/watchlist` → `sniper` | Stable marketing URLs while keeping a single implementation per pillar |
+| Loadout storage | `/loadout` uses Supabase only; no localStorage demo or auto-inserted default loadout | Avoid dummy inventory; RLS is source of truth |
 | Marketplace v2 filters | `/market` uses a progressive-disclosure comprehensive panel: Basic controls visible, Advanced and Expert/listing-level controls collapsed by default, removable active-filter chips, and disabled listing-level toggles until feed capabilities exist | Preserves BitSkins-like depth while reducing vertical clutter and matching available data fidelity |
 | Market board density | `/market` favors compact browsing by default (compact card density toggle + higher columns at wide breakpoints) and exposes sort in listing toolbar | Better mimics BitSkins-style scanability for high-volume market browsing |
 | Nested filter interaction | `/market` desktop filters follow BitSkins-like placement: left rail row controls opening right flyout panes (including Type → Weapons split pane), with multi-select where possible; mobile uses a draft drawer requiring explicit Apply | Improves parity with familiar marketplace behavior while preventing accidental mobile filter commits |
@@ -19,6 +21,7 @@ All key decisions are resolved and locked. Canonical source: `SPEC.md` § Resolv
 |----------|--------|-----------|
 | Tech stack | Next.js 16, TypeScript, Supabase, Tailwind, shadcn/ui, Radix UI | Battle-tested, well-supported, minimal infrastructure friction |
 | BitSkins pricing provider | Migrated from API v1 to API v2 | Keeps live multi-market snapshots/candles aligned with the preferred BitSkins API version |
+| Price Empire API | One-time bulk seed only; 100 total calls before subscription required | Use all 100 calls to fetch maximum data per request (multi-source), persist to DB; never call on-demand; after seed rely on cached data + other free providers |
 | Auth | Supabase Auth with Google OAuth enabled | Protected flows rely on per-user RLS isolation |
 | Deployment | Vercel (no custom domain for MVP) | Zero-config Next.js hosting |
 | Profile creation | Auto-created via DB trigger on `auth.users` INSERT | No separate signup step needed |
@@ -37,8 +40,7 @@ All key decisions are resolved and locked. Canonical source: `SPEC.md` § Resolv
 ### Design Decisions
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Headline font | JetBrains Mono (replaced Stratum2) | Monospace, trading terminal aesthetic |
-| Body font | Inter | Clean readability |
+| Typography | JetBrains Mono sitewide (`--font-jetbrains-mono` for `font-sans` / `font-mono` / `font-hero-serif`) | Terminal / HUD aesthetic; DM Sans/Serif removed from layout |
 | Navigation | Horizontal top tabs (Home icon + 3 pillars) | Fixed at top, scrollable on mobile |
 | Theme | Dark-only with design tokens in `globals.css` | Matches CS2 trading culture aesthetic |
 | Cross-flow UX gate | Every core flow must pass a "why this step exists" checklist (required-first fields, inline validation, recoverability, no blocking prompts, resilient defaults) | Enforces senior-level UX discipline and prevents friction/regressions as features evolve |

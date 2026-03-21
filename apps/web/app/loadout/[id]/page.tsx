@@ -145,8 +145,8 @@ export default async function PublicLoadoutPage({
   const slots = parseSlots(loadout.slots)
 
   return (
-    <main className="min-h-screen bg-background px-6 py-10 text-foreground">
-      <div className="mx-auto max-w-6xl space-y-6">
+    <main className="min-h-screen w-full min-w-0 bg-background px-10 py-10 text-foreground">
+      <div className="w-full space-y-6">
         <header>
           <h1 className="font-mono text-2xl font-bold tracking-tight">{loadout.name}</h1>
           <p className="text-xs text-text-secondary">Public loadout showcase</p>
@@ -160,12 +160,12 @@ export default async function PublicLoadoutPage({
           <CardContent>
             <div className="grid gap-8 md:grid-cols-2">
               <div>
-                <p className="mb-3 font-mono text-[10px] uppercase tracking-wider text-text-secondary">CT</p>
+                <p className="mb-3 font-mono text-[12px] uppercase tracking-wider text-text-secondary">CT</p>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {CT_SLOTS.map((key) => {
                     const slot = slots[key] ?? {}
                     return (
-                      <Card key={key} className="overflow-hidden border-border bg-surface">
+                      <Card key={key} className="overflow-hidden bg-surface dark:bg-[radial-gradient(ellipse_120%_90%_at_50%_0%,#1a1a1a_0%,#0f0f0f_64%)]">
                         <div className="flex h-full w-full flex-col items-center justify-center gap-1 p-3">
                           {slot.imageUrl ? (
                             <img
@@ -175,16 +175,16 @@ export default async function PublicLoadoutPage({
                             />
                           ) : (
                             <div className="flex h-14 w-14 items-center justify-center rounded border border-border bg-background/50">
-                              <span className="font-mono text-[10px] text-text-muted">
+                              <span className="font-mono text-[12px] text-text-muted">
                                 {(SLOT_LABELS[key] ?? "").slice(0, 6)}
                               </span>
                             </div>
                           )}
-                          <span className="max-w-full line-clamp-1 font-mono text-[10px] text-foreground">
+                          <span className="max-w-full line-clamp-1 font-mono text-[12px] text-foreground">
                             {slot.skinName ?? SLOT_LABELS[key] ?? ""}
                           </span>
                           {slot.floatValue != null && (
-                            <span className="font-mono text-[9px] tabular-nums text-text-muted">
+                            <span className="font-mono text-[12px] tabular-nums text-text-muted">
                               {slot.floatValue.toFixed(4)}
                             </span>
                           )}
@@ -195,12 +195,12 @@ export default async function PublicLoadoutPage({
                 </div>
               </div>
               <div>
-                <p className="mb-3 font-mono text-[10px] uppercase tracking-wider text-text-secondary">T</p>
+                <p className="mb-3 font-mono text-[12px] uppercase tracking-wider text-text-secondary">T</p>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {T_SLOTS.map((key) => {
                     const slot = slots[key] ?? {}
                     return (
-                      <Card key={key} className="overflow-hidden border-border bg-surface">
+                      <Card key={key} className="overflow-hidden bg-surface dark:bg-[radial-gradient(ellipse_120%_90%_at_50%_0%,#1a1a1a_0%,#0f0f0f_64%)]">
                         <div className="flex h-full w-full flex-col items-center justify-center gap-1 p-3">
                           {slot.imageUrl ? (
                             <img
@@ -210,16 +210,16 @@ export default async function PublicLoadoutPage({
                             />
                           ) : (
                             <div className="flex h-14 w-14 items-center justify-center rounded border border-border bg-background/50">
-                              <span className="font-mono text-[10px] text-text-muted">
+                              <span className="font-mono text-[12px] text-text-muted">
                                 {(SLOT_LABELS[key] ?? "").slice(0, 6)}
                               </span>
                             </div>
                           )}
-                          <span className="max-w-full line-clamp-1 font-mono text-[10px] text-foreground">
+                          <span className="max-w-full line-clamp-1 font-mono text-[12px] text-foreground">
                             {slot.skinName ?? SLOT_LABELS[key] ?? ""}
                           </span>
                           {slot.floatValue != null && (
-                            <span className="font-mono text-[9px] tabular-nums text-text-muted">
+                            <span className="font-mono text-[12px] tabular-nums text-text-muted">
                               {slot.floatValue.toFixed(4)}
                             </span>
                           )}

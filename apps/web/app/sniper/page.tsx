@@ -22,13 +22,35 @@ import {
 import { Input } from "@workspace/ui/components/input"
 
 import type { Target, Wear, Variant, Currency, TargetStatus, Watchlist, PriceAlert } from "@/lib/demo-seed"
-import { demoActions, formatMoney, useDemoStore } from "@/lib/prototype-store"
+import { formatMoney } from "@/lib/prototype-store"
 
 import { AuthGate } from "@/components/auth-gate"
+
+import { createClient as createBrowserClient } from "@/lib/supabase/browser"
 
 const WEARS: Wear[] = ["FN", "MW", "FT", "WW", "BS"]
 const VARIANTS: Variant[] = ["none", "stattrak", "souvenir"]
 const CURRENCIES: Currency[] = ["USD", "EUR", "GBP", "CNY"]
+
+function normalizeWatchlists(
+  rows: { id: string; name: string; color: string | null }[] | null,
+): Watchlist[] {
+  return (rows ?? []).map((w) => ({
+    id: w.id,
+    name: w.name,
+    color: w.color ?? undefined,
+  }))
+}
+
+function parseWear(value: string | null | undefined): Wear | undefined {
+  if (!value) return undefined
+  return WEARS.includes(value as Wear) ? (value as Wear) : undefined
+}
+
+function parseVariant(value: string | null | undefined): Variant {
+  if (value && VARIANTS.includes(value as Variant)) return value as Variant
+  return "none"
+}
 
 function floatRangeFromWear(w: Wear): { minFloat: number; maxFloat: number } {
   // CS2 float tiers (approx); used to prefill range when coming from market exterior selection.
@@ -52,27 +74,40 @@ function buildMarketplaceLinks(skinName: string): Record<string, string> {
     steam: `https://steamcommunity.com/market/search?q=${encoded}`,
     skinport: `https://skinport.com/item/cs2?search=${encoded}`,
     csfloat: `https://csfloat.com/search?q=${encoded}`,
+    csmoney: `https://cs.money/market/buy/?search=${encoded}`,
     buff163: `https://buff.163.com/market/csgo#tab=selling&page_num=1&search=${encoded}`,
   }
 }
 
-function id() {
-  return `target_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`
+function newId() {
+  const c = globalThis.crypto
+  if (c && "randomUUID" in c && typeof c.randomUUID === "function") return c.randomUUID()
+  if (!c || typeof c.getRandomValues !== "function") return `${Date.now()}`
+  // RFC 4122 v4 fallback
+  const bytes = new Uint8Array(16)
+  c.getRandomValues(bytes)
+  bytes[6] = ((bytes[6] ?? 0) & 0x0f) | 0x40
+  bytes[8] = ((bytes[8] ?? 0) & 0x3f) | 0x80
+  const hex = Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("")
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
 }
 
-function watchlistId() {
-  return `wl_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`
+function newWatchlistId() {
+  return newId()
 }
 
 export default function SniperPage() {
-  const store = useDemoStore()
-  const profile = store.profile
-  const targets = store.targets ?? []
-  const ui = store.ui
-  const watchlists = store.watchlists ?? []
-  const alerts = store.alerts ?? []
-  const actions = useMemo(() => demoActions(), [])
-  const currency = profile.displayCurrency
+  const supabase = useMemo(() => createBrowserClient(), [])
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
+
+  const [currency, setCurrency] = useState<Currency>("USD")
+  const [targets, setTargets] = useState<Target[]>([])
+  const [watchlists, setWatchlists] = useState<Watchlist[]>([])
+  const [alerts, setAlerts] = useState<PriceAlert[]>([])
 
   const [statusFilter, setStatusFilter] = useState<"all" | "hunting" | "acquired" | "abandoned">("all")
   const [activeWatchlistId, setActiveWatchlistId] = useState<string>("all")
@@ -89,23 +124,147 @@ export default function SniperPage() {
   const [acquirePrice, setAcquirePrice] = useState<string>("")
   const [acquireDate, setAcquireDate] = useState<string>("")
 
-  const draftFromSlot = ui.draftTargetFromSlot
   const [marketPrefill, setMarketPrefill] = useState<{ skin?: string; weapon?: string; wear?: Wear } | null>(
     null,
   )
+
+  const refreshAll = useCallback(
+    async (overrideUserId?: string) => {
+      if (!supabase) return
+      const effectiveUserId = overrideUserId ?? userId
+      if (!effectiveUserId) return
+
+      const [{ data: wlRows }, { data: tRows }, { data: linkRows }, { data: alRows }] = await Promise.all([
+        supabase
+          .from("target_watchlists")
+          .select("id, name, color")
+          .eq("user_id", effectiveUserId)
+          .order("sort_order", { ascending: true }),
+        supabase
+          .from("targets")
+          .select(
+            "id, skin_name, wear, variant, target_price, currency, min_float, max_float, image_url, notes, status, acquired_price, acquired_date, marketplace_links",
+          )
+          .eq("user_id", effectiveUserId)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("target_watchlist_items")
+          .select("target_id, watchlist_id")
+          .eq("user_id", effectiveUserId),
+        supabase
+          .from("price_alerts")
+          .select("id, item_name, market, currency, condition, trigger_price, is_active, last_triggered_at")
+          .eq("user_id", effectiveUserId)
+          .order("created_at", { ascending: false }),
+      ])
+
+      let wl = normalizeWatchlists(wlRows)
+
+      // Auto-create an empty "Primary" watchlist (no dummy targets).
+      if (wl.length === 0) {
+        const inserted = await supabase.from("target_watchlists").insert({
+          user_id: effectiveUserId,
+          name: "Primary",
+          color: "info",
+        })
+        if (inserted.error) throw inserted.error
+        const { data: wlRefetched } = await supabase
+          .from("target_watchlists")
+          .select("id, name, color")
+          .eq("user_id", effectiveUserId)
+          .order("sort_order", { ascending: true })
+        wl = normalizeWatchlists(wlRefetched)
+        setWatchlists(wl)
+      } else {
+        setWatchlists(wl)
+      }
+
+      const watchlistByTargetId = new Map<string, string>()
+      for (const l of linkRows ?? []) {
+        if (l.watchlist_id) watchlistByTargetId.set(l.target_id, l.watchlist_id)
+      }
+
+      const mappedTargets: Target[] = (tRows ?? []).map((r) => ({
+        id: r.id,
+        skinName: r.skin_name,
+        watchlistId: watchlistByTargetId.get(r.id) ?? wl[0]?.id ?? undefined,
+        weaponType: undefined,
+        wear: parseWear(r.wear),
+        variant: parseVariant(r.variant),
+        targetPrice: Number(r.target_price),
+        currency: r.currency as Currency,
+        minFloat: typeof r.min_float === "number" ? r.min_float : undefined,
+        maxFloat: typeof r.max_float === "number" ? r.max_float : undefined,
+        imageUrl: r.image_url ?? undefined,
+        notes: r.notes ?? undefined,
+        status: r.status as TargetStatus,
+        acquiredPrice: typeof r.acquired_price === "number" ? r.acquired_price : undefined,
+        acquiredDate: typeof r.acquired_date === "string" ? r.acquired_date : undefined,
+        marketplaceLinks:
+          r.marketplace_links && typeof r.marketplace_links === "object" && Object.keys(r.marketplace_links as any).length
+            ? (r.marketplace_links as any)
+            : undefined,
+      }))
+
+      const mappedAlerts: PriceAlert[] = (alRows ?? []).map((a) => ({
+        id: a.id,
+        itemName: a.item_name,
+        market: a.market ?? undefined,
+        condition: a.condition as "below" | "above",
+        triggerPrice: Number(a.trigger_price),
+        currency: a.currency as Currency,
+        isActive: a.is_active,
+        lastTriggeredAt: a.last_triggered_at ?? undefined,
+      }))
+
+      setTargets(mappedTargets)
+      setAlerts(mappedAlerts)
+    },
+    [supabase, userId],
+  )
+
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      if (!supabase) {
+        setLoadError("Supabase is not configured.")
+        setIsLoading(false)
+        return
+      }
+
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+
+        if (!user) {
+          setLoadError("Sign in required.")
+          setIsLoading(false)
+          return
+        }
+
+        setUserId(user.id)
+        await refreshAll(user.id)
+
+        if (!cancelled) setIsLoading(false)
+      } catch (e) {
+        if (cancelled) return
+        setLoadError(e instanceof Error ? e.message : "Failed to load watchlist.")
+        setIsLoading(false)
+      }
+    }
+
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [supabase, refreshAll])
 
   useEffect(() => {
     if (activeWatchlistId !== "all") return
     if (!watchlists.length) return
     setActiveWatchlistId(watchlists[0]!.id)
   }, [activeWatchlistId, watchlists])
-
-  useEffect(() => {
-    if (watchlists.length > 0) return
-    const starter: Watchlist = { id: watchlistId(), name: "Primary" }
-    actions.upsertWatchlist(starter)
-    setActiveWatchlistId(starter.id)
-  }, [actions, watchlists.length])
 
   const filteredTargets = targets.filter((t) => {
     if (activeWatchlistId !== "all" && t.watchlistId !== activeWatchlistId) return false
@@ -116,32 +275,19 @@ export default function SniperPage() {
   const activeAlerts = useMemo(() => alerts.filter((a) => a.isActive), [alerts])
 
   const openCreate = useCallback(() => {
-    if (draftFromSlot) {
-      setForm({
-        skinName: "",
-        watchlistId: watchlists[0]?.id,
-        weaponType: draftFromSlot.weaponLabel,
-        variant: "none",
-        targetPrice: undefined,
-        currency: "USD",
-        status: "hunting",
-        marketplaceLinks: {},
-      })
-      actions.consumeTargetDraft()
-    } else {
-      setForm({
-        skinName: "",
-        watchlistId: watchlists[0]?.id,
-        variant: "none",
-        targetPrice: undefined,
-        currency: "USD",
-        status: "hunting",
-        marketplaceLinks: {},
-      })
-    }
+    const defaultWatchlistId = activeWatchlistId !== "all" ? activeWatchlistId : watchlists[0]?.id
+    setForm({
+      skinName: "",
+      watchlistId: defaultWatchlistId,
+      variant: "none",
+      targetPrice: undefined,
+      currency,
+      status: "hunting",
+      marketplaceLinks: undefined,
+    })
     setEditingId(null)
     setDialogOpen(true)
-  }, [draftFromSlot, actions, watchlists])
+  }, [activeWatchlistId, currency, watchlists])
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -159,21 +305,33 @@ export default function SniperPage() {
     const wearRange = marketPrefill.wear ? floatRangeFromWear(marketPrefill.wear) : null
     setForm({
       skinName: marketPrefill.skin,
-      watchlistId: watchlists[0]?.id,
+      watchlistId: activeWatchlistId !== "all" ? activeWatchlistId : watchlists[0]?.id,
       weaponType: marketPrefill.weapon || undefined,
       wear: marketPrefill.wear,
       minFloat: wearRange?.minFloat,
       maxFloat: wearRange?.maxFloat,
       variant: "none",
       targetPrice: undefined,
-      currency: "USD",
+      currency,
       status: "hunting",
       marketplaceLinks: buildMarketplaceLinks(marketPrefill.skin),
     })
     setEditingId(null)
     setDialogOpen(true)
     // Leave the query in place (demo); user can refresh/share.
-  }, [marketPrefill])
+  }, [marketPrefill, currency, activeWatchlistId, watchlists])
+
+  // If URL prefill ran before watchlists loaded, `watchlistId` can be missing; patch when lists arrive.
+  useEffect(() => {
+    if (!marketPrefill?.skin) return
+    if (!watchlists.length) return
+    setForm((f) => {
+      if (f.watchlistId) return f
+      const nextId = activeWatchlistId !== "all" ? activeWatchlistId : watchlists[0]?.id
+      if (!nextId) return f
+      return { ...f, watchlistId: nextId }
+    })
+  }, [marketPrefill, watchlists, activeWatchlistId])
 
   const openEdit = useCallback((t: Target) => {
     setForm({
@@ -207,19 +365,23 @@ export default function SniperPage() {
     (minFloatProvided && (form.minFloat! < 0 || form.minFloat! > 1)) ||
     (maxFloatProvided && (form.maxFloat! < 0 || form.maxFloat! > 1)) ||
     (minFloatProvided && maxFloatProvided && form.minFloat! > form.maxFloat!)
-  const canSubmit = formSkinName.length > 0 && targetPriceValid && !floatRangeInvalid
+  const canSubmit = formSkinName.length > 0 && targetPriceValid && !floatRangeInvalid && Boolean(form.watchlistId)
 
   const handleSubmit = () => {
     if (!canSubmit) return
+    if (!supabase) return
+    if (!userId) return
+    const watchlistId = form.watchlistId ?? watchlists[0]?.id
+    if (!watchlistId) return
     const target: Target = {
-      id: editingId ?? id(),
+      id: editingId ?? newId(),
       skinName: formSkinName || "Unknown",
-      watchlistId: form.watchlistId,
+      watchlistId,
       weaponType: form.weaponType,
       wear: form.wear,
       variant: form.variant ?? "none",
       targetPrice: targetPriceValue,
-      currency: form.currency ?? "USD",
+      currency: (form.currency ?? currency) as Currency,
       minFloat: form.minFloat,
       maxFloat: form.maxFloat,
       imageUrl: form.imageUrl,
@@ -229,10 +391,56 @@ export default function SniperPage() {
       acquiredDate: form.acquiredDate,
       marketplaceLinks: form.marketplaceLinks ?? buildMarketplaceLinks(formSkinName),
     }
-    actions.upsertTarget(target)
-    setDialogOpen(false)
-    setEditingId(null)
-    setForm({})
+
+    ;(async () => {
+      try {
+        const marketplaceLinks = target.marketplaceLinks ?? buildMarketplaceLinks(target.skinName)
+
+        const { error: targetErr } = await supabase.from("targets").upsert({
+          id: target.id,
+          user_id: userId,
+          skin_name: target.skinName,
+          wear: target.wear ?? null,
+          variant: target.variant,
+          image_url: target.imageUrl ?? null,
+          target_price: target.targetPrice,
+          currency: target.currency,
+          min_float: target.minFloat ?? null,
+          max_float: target.maxFloat ?? null,
+          status: target.status,
+          acquired_price: target.status === "acquired" ? target.acquiredPrice ?? null : null,
+          acquired_date: target.status === "acquired" ? target.acquiredDate ?? null : null,
+          notes: target.notes ?? null,
+          marketplace_links: marketplaceLinks ?? {},
+        })
+
+        if (targetErr) throw targetErr
+
+        // Keep watchlist membership in sync with the selected watchlist.
+        const { error: linkDelErr } = await supabase
+          .from("target_watchlist_items")
+          .delete()
+          .eq("target_id", target.id)
+          .eq("user_id", userId)
+        if (linkDelErr) throw linkDelErr
+
+        const { error: linkInsErr } = await supabase
+          .from("target_watchlist_items")
+          .insert({
+            user_id: userId,
+            watchlist_id: watchlistId,
+            target_id: target.id,
+          })
+        if (linkInsErr) throw linkInsErr
+
+        await refreshAll()
+        setDialogOpen(false)
+        setEditingId(null)
+        setForm({})
+      } catch (e) {
+        setLoadError(e instanceof Error ? e.message : "Failed to save target.")
+      }
+    })()
   }
 
   const openAcquireDialog = useCallback((target: Target) => {
@@ -247,43 +455,95 @@ export default function SniperPage() {
     if (!acquireDialogTarget) return
     const parsed = Number(acquirePrice)
     if (!Number.isFinite(parsed) || parsed <= 0 || !acquireDate) return
-    actions.upsertTarget({
-      ...acquireDialogTarget,
-      status: "acquired",
-      acquiredPrice: parsed,
-      acquiredDate: acquireDate,
-    })
-    setStampVisible(acquireDialogTarget.id)
-    setAcquireDialogTarget(null)
-    setAcquirePrice("")
-    setAcquireDate("")
-  }, [acquireDate, acquireDialogTarget, acquirePrice, actions])
+
+    if (!supabase) return
+    if (!userId) return
+
+    ;(async () => {
+      try {
+        const { error } = await supabase
+          .from("targets")
+          .update({
+            status: "acquired",
+            acquired_price: parsed,
+            acquired_date: acquireDate,
+          })
+          .eq("id", acquireDialogTarget.id)
+          .eq("user_id", userId)
+
+        if (error) throw error
+
+        await refreshAll()
+        setStampVisible(acquireDialogTarget.id)
+        setAcquireDialogTarget(null)
+        setAcquirePrice("")
+        setAcquireDate("")
+      } catch (e) {
+        setLoadError(e instanceof Error ? e.message : "Failed to mark acquired.")
+      }
+    })()
+  }, [acquireDate, acquireDialogTarget, acquirePrice, refreshAll, supabase, userId])
 
   const createWatchlist = () => {
     const name = watchlistName.trim()
     if (!name) return
-    const wl: Watchlist = { id: watchlistId(), name }
-    actions.upsertWatchlist(wl)
-    setActiveWatchlistId(wl.id)
-    setWatchlistName("")
+
+    if (!supabase) return
+    if (!userId) return
+
+    ;(async () => {
+      try {
+        const { data, error } = await supabase
+          .from("target_watchlists")
+          .insert({
+            user_id: userId,
+            name,
+            color: "info",
+          })
+          .select("id")
+          .single()
+
+        if (error) throw error
+
+        await refreshAll()
+        setActiveWatchlistId(data.id)
+        setWatchlistName("")
+      } catch (e) {
+        setLoadError(e instanceof Error ? e.message : "Failed to create watchlist.")
+      }
+    })()
   }
 
   const createAlert = () => {
     const name = alertSkin.trim()
     const p = Number(alertPrice)
     if (!name || !Number.isFinite(p) || p <= 0) return
-    const a: PriceAlert = {
-      id: `alert_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`,
-      itemName: name,
-      condition: "below",
-      triggerPrice: p,
-      currency: "USD",
-      isActive: true,
-    }
-    actions.upsertAlert(a)
-    setAlertDialogOpen(false)
-    setAlertSkin("")
-    setAlertPrice(0)
+
+    if (!supabase) return
+    if (!userId) return
+
+    ;(async () => {
+      try {
+        const { error } = await supabase.from("price_alerts").insert({
+          user_id: userId,
+          item_name: name,
+          market: null,
+          condition: "below",
+          trigger_price: p,
+          currency,
+          is_active: true,
+        })
+
+        if (error) throw error
+
+        await refreshAll()
+        setAlertDialogOpen(false)
+        setAlertSkin("")
+        setAlertPrice(0)
+      } catch (e) {
+        setLoadError(e instanceof Error ? e.message : "Failed to create alert.")
+      }
+    })()
   }
 
   useEffect(() => {
@@ -331,10 +591,36 @@ export default function SniperPage() {
     return () => mq.removeEventListener("change", on)
   }, [])
 
+  if (isLoading) {
+    return (
+      <AuthGate subtitle="Login to proceed">
+        <main className="min-h-screen w-full min-w-0 bg-background px-10 py-10 text-foreground">
+          <div className="w-full space-y-6">
+            <p className="text-sm text-text-muted">Loading watchlist…</p>
+          </div>
+        </main>
+      </AuthGate>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <AuthGate subtitle="Login to proceed">
+        <main className="min-h-screen w-full min-w-0 bg-background px-10 py-10 text-foreground">
+          <div className="w-full space-y-6">
+            <Card className="border-destructive/40">
+              <CardContent className="py-6 text-sm text-destructive">Failed to load: {loadError}</CardContent>
+            </Card>
+          </div>
+        </main>
+      </AuthGate>
+    )
+  }
+
   return (
     <AuthGate subtitle="Login to proceed">
-      <main className="min-h-screen bg-background px-6 py-10 text-foreground">
-        <div className="mx-auto max-w-6xl space-y-6">
+      <main className="min-h-screen w-full min-w-0 bg-background px-10 py-10 text-foreground">
+        <div className="w-full space-y-6">
         <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <h1 className="font-mono text-2xl font-bold tracking-tight">
@@ -375,19 +661,6 @@ export default function SniperPage() {
           </div>
         </header>
 
-        {draftFromSlot && (
-          <Card className="border-info/50 bg-info/5">
-            <CardContent className="flex items-center justify-between py-3">
-              <p className="text-xs text-foreground">
-                Target draft from Loadout: <span className="font-mono">{draftFromSlot.weaponLabel}</span>
-              </p>
-              <Button size="sm" variant="outline" onClick={openCreate}>
-                Use draft
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
         {/* Status tabs */}
         <div className="flex gap-1">
           {(["all", "hunting", "acquired", "abandoned"] as const).map((s) => (
@@ -395,7 +668,7 @@ export default function SniperPage() {
               key={s}
               variant={statusFilter === s ? "default" : "ghost"}
               size="sm"
-              className="font-mono text-[11px]"
+              className="font-mono text-[12px]"
               onClick={() => setStatusFilter(s)}
             >
               {s}
@@ -412,16 +685,16 @@ export default function SniperPage() {
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-[11px] text-text-muted">
+              <p className="text-[12px] text-text-muted">
                 Active: {activeAlerts.length} · Triggered now: {triggered.length}
               </p>
-              <Button size="sm" variant="outline" onClick={() => setAlertDialogOpen(true)} className="font-mono text-[11px]">
+              <Button size="sm" variant="outline" onClick={() => setAlertDialogOpen(true)} className="font-mono text-[12px]">
                 New alert
               </Button>
             </div>
             {triggered.length > 0 && (
-              <div className="rounded-none border border-profit/40 bg-profit/5 p-2 text-[11px]">
-                <p className="font-mono text-[10px] uppercase tracking-wider text-profit">Triggered</p>
+              <div className="rounded-none border border-profit/40 bg-profit/5 p-2 text-[12px]">
+                <p className="font-mono text-[12px] uppercase tracking-wider text-profit">Triggered</p>
                 <div className="mt-1 space-y-1">
                   {triggered.slice(0, 5).map((a) => (
                     <div key={a.id} className="flex items-center justify-between gap-3">
@@ -462,7 +735,7 @@ export default function SniperPage() {
                     {t.skinName}
                   </CardTitle>
                   <span
-                    className={`shrink-0 font-mono text-[10px] ${
+                    className={`shrink-0 font-mono text-[12px] ${
                       t.status === "hunting"
                         ? "text-warning"
                         : t.status === "acquired"
@@ -495,8 +768,17 @@ export default function SniperPage() {
                     </Button>
                   )}
                   {t.status === "acquired" && (
-                    <Button size="xs" variant="outline" asChild onClick={() => actions.primeTradeFromTarget(t.id)}>
-                      <Link href="/trade-links" className="font-mono text-[11px]">
+                    <Button size="xs" variant="outline" asChild>
+                      <Link
+                        href={`/trade-links?skin=${encodeURIComponent(t.skinName)}&variant=${encodeURIComponent(t.variant)}&wear=${encodeURIComponent(
+                          t.wear ?? "",
+                        )}&buyPrice=${encodeURIComponent(String(t.acquiredPrice ?? t.targetPrice))}&currency=${encodeURIComponent(
+                          t.currency,
+                        )}&floatValue=${encodeURIComponent(t.maxFloat != null ? String(t.maxFloat) : "")}&notes=${encodeURIComponent(
+                          t.notes ?? "",
+                        )}&buyDate=${encodeURIComponent(t.acquiredDate ?? "")}`}
+                        className="font-mono text-[12px]"
+                      >
                         Log as trade →
                       </Link>
                     </Button>
@@ -510,7 +792,7 @@ export default function SniperPage() {
                         href={url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="font-mono text-[10px] text-info hover:underline"
+                        className="font-mono text-[12px] text-info hover:underline"
                       >
                         {site}
                       </a>
@@ -543,7 +825,7 @@ export default function SniperPage() {
           </DialogHeader>
           <div className="grid gap-3 text-xs">
             <div>
-              <label className="mb-1 block font-mono text-[10px] uppercase text-text-secondary">
+              <label className="mb-1 block font-mono text-[12px] uppercase text-text-secondary">
                 Skin name
               </label>
               <Input
@@ -553,11 +835,11 @@ export default function SniperPage() {
                 className="font-mono"
               />
               {!formSkinName && (
-                <p className="mt-1 text-[11px] text-danger">Enter the exact skin name to generate links.</p>
+                <p className="mt-1 text-[12px] text-danger">Enter the exact skin name to generate links.</p>
               )}
             </div>
             <div>
-              <label className="mb-1 block font-mono text-[10px] uppercase text-text-secondary">
+              <label className="mb-1 block font-mono text-[12px] uppercase text-text-secondary">
                 Watchlist
               </label>
               <select
@@ -574,7 +856,7 @@ export default function SniperPage() {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="mb-1 block font-mono text-[10px] uppercase text-text-secondary">
+                <label className="mb-1 block font-mono text-[12px] uppercase text-text-secondary">
                   Wear
                 </label>
                 <select
@@ -591,7 +873,7 @@ export default function SniperPage() {
                 </select>
               </div>
               <div>
-                <label className="mb-1 block font-mono text-[10px] uppercase text-text-secondary">
+                <label className="mb-1 block font-mono text-[12px] uppercase text-text-secondary">
                   Variant
                 </label>
                 <select
@@ -609,7 +891,7 @@ export default function SniperPage() {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="mb-1 block font-mono text-[10px] uppercase text-text-secondary">
+                <label className="mb-1 block font-mono text-[12px] uppercase text-text-secondary">
                   Target price
                 </label>
                 <Input
@@ -627,15 +909,15 @@ export default function SniperPage() {
                   className="font-mono tabular-nums"
                 />
                 {!targetPriceValid && (
-                  <p className="mt-1 text-[11px] text-danger">Target price must be greater than 0.</p>
+                  <p className="mt-1 text-[12px] text-danger">Target price must be greater than 0.</p>
                 )}
               </div>
               <div>
-                <label className="mb-1 block font-mono text-[10px] uppercase text-text-secondary">
+                <label className="mb-1 block font-mono text-[12px] uppercase text-text-secondary">
                   Currency
                 </label>
                 <select
-                  value={form.currency ?? "USD"}
+                  value={form.currency ?? currency}
                   onChange={(e) => setForm((f) => ({ ...f, currency: e.target.value as Currency }))}
                   className="h-8 w-full rounded-none border border-input bg-background px-2 font-mono text-xs"
                 >
@@ -649,7 +931,7 @@ export default function SniperPage() {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="mb-1 block font-mono text-[10px] uppercase text-text-secondary">
+                <label className="mb-1 block font-mono text-[12px] uppercase text-text-secondary">
                   Min float
                 </label>
                 <Input
@@ -668,7 +950,7 @@ export default function SniperPage() {
                 />
               </div>
               <div>
-                <label className="mb-1 block font-mono text-[10px] uppercase text-text-secondary">
+                <label className="mb-1 block font-mono text-[12px] uppercase text-text-secondary">
                   Max float
                 </label>
                 <Input
@@ -688,12 +970,12 @@ export default function SniperPage() {
               </div>
             </div>
             {floatRangeInvalid && (
-              <p className="text-[11px] text-danger">
+              <p className="text-[12px] text-danger">
                 Float values must be within 0.0000-1.0000 and min float cannot exceed max float.
               </p>
             )}
             <div>
-              <label className="mb-1 block font-mono text-[10px] uppercase text-text-secondary">
+              <label className="mb-1 block font-mono text-[12px] uppercase text-text-secondary">
                 Notes
               </label>
               <Input
@@ -728,7 +1010,7 @@ export default function SniperPage() {
           </DialogHeader>
           <div className="grid gap-3 text-xs">
             <div>
-              <label className="mb-1 block font-mono text-[10px] uppercase text-text-secondary">
+              <label className="mb-1 block font-mono text-[12px] uppercase text-text-secondary">
                 Skin name
               </label>
               <Input
@@ -739,7 +1021,7 @@ export default function SniperPage() {
               />
             </div>
             <div>
-              <label className="mb-1 block font-mono text-[10px] uppercase text-text-secondary">
+              <label className="mb-1 block font-mono text-[12px] uppercase text-text-secondary">
                 Trigger price (USD)
               </label>
               <Input
@@ -773,12 +1055,12 @@ export default function SniperPage() {
           </DialogHeader>
           <div className="grid gap-3 text-xs">
             <div>
-              <label className="mb-1 block font-mono text-[10px] uppercase text-text-secondary">Skin</label>
+              <label className="mb-1 block font-mono text-[12px] uppercase text-text-secondary">Skin</label>
               <Input value={acquireDialogTarget?.skinName ?? ""} disabled className="font-mono" />
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="mb-1 block font-mono text-[10px] uppercase text-text-secondary">
+                <label className="mb-1 block font-mono text-[12px] uppercase text-text-secondary">
                   Acquired price
                 </label>
                 <Input
@@ -791,7 +1073,7 @@ export default function SniperPage() {
                 />
               </div>
               <div>
-                <label className="mb-1 block font-mono text-[10px] uppercase text-text-secondary">
+                <label className="mb-1 block font-mono text-[12px] uppercase text-text-secondary">
                   Acquired date
                 </label>
                 <Input

@@ -57,7 +57,7 @@ export type Target = {
   status: TargetStatus
   acquiredPrice?: number
   acquiredDate?: string // ISO yyyy-mm-dd
-  marketplaceLinks?: Partial<Record<"steam" | "skinport" | "csfloat" | "buff163", string>>
+  marketplaceLinks?: Partial<Record<"steam" | "skinport" | "csfloat" | "csmoney" | "buff163", string>>
 }
 
 export type Profile = {
@@ -73,7 +73,7 @@ export type Watchlist = {
 export type PriceAlert = {
   id: string
   itemName: string
-  market?: "steam" | "skinport" | "csfloat" | "buff163" | "bitskins" | "dmarket" | "waxpeer" | string
+  market?: "steam" | "skinport" | "csfloat" | "csmoney" | "buff163" | "bitskins" | "dmarket" | "waxpeer" | string
   condition: "below" | "above"
   triggerPrice: number
   currency: Currency

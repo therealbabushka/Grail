@@ -32,7 +32,7 @@ export async function GET(req: Request) {
   const nowIso = new Date().toISOString()
   const bitskinsApiKey = process.env.BITSKINS_API_KEY
   const bitskinsSecret = process.env.BITSKINS_API_SECRET
-  const expectedMarkets = ["steam", "skinport", "bitskins", "csfloat", "buff163", "dmarket", "waxpeer"]
+  const expectedMarkets = ["steam", "skinport", "bitskins", "csfloat", "csmoney", "dmarket", "waxpeer"]
 
   const admin = createAdminClient()
 

@@ -68,9 +68,9 @@
     --rarity-covert: #eb4b4b;
     --rarity-gold: #ffd700;
     --destructive-foreground: oklch(1 0 0);
-    --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
-    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     --shadow-color: oklch(0 0 0);
     --shadow-opacity: 0.1;
     --shadow-blur: 3px;
@@ -150,9 +150,9 @@
     --rarity-gold: #ffd700;
     --destructive-foreground: oklch(0.9850 0 0);
     --radius: 0.625rem;
-    --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
-    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     --shadow-color: oklch(0 0 0);
     --shadow-opacity: 0.1;
     --shadow-blur: 3px;
@@ -210,7 +210,7 @@
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-ring: var(--sidebar-ring);
-    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 
     --color-profit: var(--profit);
     --color-loss: var(--loss);
@@ -233,7 +233,7 @@
     --color-rarity-classified: var(--rarity-classified);
     --color-rarity-covert: var(--rarity-covert);
     --color-rarity-gold: var(--rarity-gold);
-    --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
     --radius: 0.625rem;
     --tracking-tighter: calc(var(--tracking-normal) - 0.05em);
@@ -262,9 +262,12 @@
 }
 
 @layer base {
+  /* UI copy: minimum 12px. Prefer `text-xs` or `text-[12px]`; avoid smaller arbitrary sizes. */
+  /* Border color only — avoid @apply border-border on `*`, which can register as a 1px border in some Tailwind builds. */
   * {
-    @apply border-border outline-ring/50;
-    }
+    border-color: var(--color-border);
+    @apply outline-ring/50;
+  }
   body {
     @apply bg-background text-foreground;
     letter-spacing: var(--tracking-normal);
@@ -294,5 +297,43 @@
   @keyframes grailBgDrift {
     0% { filter: saturate(0.95) contrast(1.02); transform: translate3d(0, 0, 0); }
     100% { filter: saturate(1.05) contrast(1.05); transform: translate3d(0, -10px, 0); }
+  }
+}
+
+/* Display / marketing hero — DM Sans */
+@layer utilities {
+  .font-hero-serif {
+    font-family: var(--font-dm-sans), ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+  }
+
+  /* Market catalog card skeleton — horizontal shimmer (respect reduced motion in markup) */
+  .skeleton-shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .skeleton-shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      color-mix(in oklch, var(--foreground) 14%, transparent) 50%,
+      transparent 100%
+    );
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    @keyframes skeleton-shimmer-slide {
+      0% {
+        transform: translateX(-100%);
+      }
+      100% {
+        transform: translateX(100%);
+      }
+    }
+    .skeleton-shimmer::after {
+      animation: skeleton-shimmer-slide 1.35s ease-in-out infinite;
+    }
   }
 }

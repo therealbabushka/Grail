@@ -82,49 +82,54 @@ Grail/
 
 ## Route Architecture
 
+Market-first IA: browsing is public; pillar tools use `AuthGate` / client Supabase (RLS) so signed-out users can open routes but see “login to proceed” unless noted.
+
 ```
-/                          → Home / Command Center Dashboard (requires auth)
-/login                     → Login page (Google OAuth, public)
-/auth/callback             → OAuth callback handler (exchanges code for session, public)
-/float-flip                → Float Flip pillar (requires auth)
-/loadout                   → Loadout Canvas — user's loadout list (requires auth)
-/loadout/[id]              → Public shareable loadout view (public, no auth needed)
-/sniper                    → Skin Sniper pillar (requires auth)
-/profile                   → Profile settings (requires auth)
+/                          → Public landing (market entry, hero, curated rails)
+/market                    → Public marketplace browse / search
+/market/[id]               → Public skin detail (catalog + live pricing + history UX)
+/dashboard                 → Command Center HUD (pillar summary; AuthGate — not a fourth pillar)
+/login                     → Login (Google OAuth, public)
+/auth/callback             → OAuth callback (session exchange, public)
+/float-flip                → Float Flip / Trades pillar (implementation: `float-flip/page.tsx`)
+/trade-links               → Alias for Float Flip — re-exports `float-flip/page.tsx`
+/loadout                   → Loadout Canvas (Supabase-backed; no local/demo seed)
+/loadout/[id]              → Public shareable loadout when `is_public` (no auth)
+/sniper                    → Skin Sniper / Watchlist pillar (implementation: `sniper/page.tsx`)
+/watchlist                 → Alias for Watchlist — re-exports `sniper/page.tsx`
+/profile                   → Profile / currency (AuthGate)
 ```
 
-**App Router file structure:**
+**App Router file structure (representative):**
 ```
 apps/web/app/
-├── layout.tsx                  # Root layout (ThemeProvider, navigation)
-├── page.tsx                    # / → Home Dashboard
-├── login/
-│   └── page.tsx                # /login
-├── auth/
-│   └── callback/
-│       └── route.ts            # /auth/callback (OAuth code → session exchange)
-├── float-flip/
-│   └── page.tsx                # /float-flip
+├── layout.tsx
+├── page.tsx                    # / → landing
+├── dashboard/page.tsx          # /dashboard
+├── market/
+│   ├── page.tsx                # /market
+│   └── [id]/page.tsx           # /market/[id]
+├── login/page.tsx
+├── auth/callback/route.ts
+├── float-flip/page.tsx         # Trades UI
+├── trade-links/page.tsx        # re-export → float-flip
 ├── loadout/
-│   ├── page.tsx                # /loadout
-│   └── [id]/
-│       └── page.tsx            # /loadout/[id] (public)
-├── sniper/
-│   └── page.tsx                # /sniper
-└── profile/
-    └── page.tsx                # /profile
+│   ├── page.tsx
+│   └── [id]/page.tsx           # public OG share view
+├── sniper/page.tsx             # Watchlist UI
+├── watchlist/page.tsx          # re-export → sniper
+└── profile/page.tsx
 ```
 
 **Auth & Route Protection:**
-- **Middleware** (`apps/web/middleware.ts`): Protect all routes using `@supabase/ssr`.
-- **Public routes** (bypass middleware): `/login`, `/auth/callback`, `/loadout/[id]`.
-- **Protected routes** (redirect to `/login` if unauthenticated): `/`, `/float-flip`, `/loadout`, `/sniper`, `/profile`.
+- **Middleware** (`apps/web/middleware.ts`): Refreshes session; `AUTH_DISABLED = false`. **Public paths** include `/`, `/market`, `/market/*`, `/login`, `/auth/callback`, `/design-system`, `/shadcn-preview`, `/api/*`, and `/loadout/*` (public share links). Other routes are not hard-redirected to `/login` — pages **wrap pillar content in `AuthGate`** (or equivalent) so UX is auth-aware without breaking deep links.
+- **RLS:** All writes go through Supabase with `auth.uid()` policies on `profiles`, `trades`, `loadouts`, `targets`, `target_watchlists`, `target_watchlist_items`, `price_alerts` (see `supabase/schema.sql`).
 
 ---
 
 ## Home Dashboard (Command Center)
 
-The `/` route is the app's entry point after login. It is not a "fourth pillar" — it's a heads-up display that shows a live summary of all three pillars at a glance.
+The **`/dashboard`** route is the signed-in heads-up display that summarizes all three pillars. **`/`** is the public market-first landing — not the dashboard.
 
 **Layout:**
 
@@ -157,7 +162,7 @@ This replaces the need for a separate onboarding modal or wizard.
 
 **The Problem:** Traders track margins in spreadsheets. Boring. No instant gratification.
 
-**The Vibe:** Wall Street meets Counter-Strike. Neo-brutalist. Terminal green for profit, stark red for loss. JetBrains Mono font.
+**The Vibe:** Wall Street meets Counter-Strike. Neo-brutalist. Terminal green for profit, stark red for loss. JetBrains Mono for UI, headlines, and data (default `font-sans` / `font-mono`; `font-hero-serif` uses the same stack).
 
 **Core Features:**
 
@@ -217,7 +222,8 @@ Trade
 - 3D tilt on hover (holographic card effect)
 - Float value / price paid overlay on hover
 - Shareable loadout links (public URL: `/loadout/{loadout_id}`, accessible without auth when `is_public = true`)
-- Multiple saved loadouts (Dream, Current, Budget)
+- Multiple named loadouts (user-created; no auto-seeded defaults)
+- **`/loadout` is Supabase-backed only:** no localStorage/demo loadouts and no automatic insert of a default loadout; signed-in users with zero rows see an empty state and create their first loadout explicitly.
 
 **Weapon Slots:**
 
@@ -369,6 +375,7 @@ Target
   "steam": "https://steamcommunity.com/market/listings/730/...",
   "skinport": "https://skinport.com/item/...",
   "csfloat": "https://csfloat.com/search?...",
+  "csmoney": "https://cs.money/market/buy/?search=...",
   "buff163": "https://buff.163.com/goods/..."
 }
 ```
@@ -593,8 +600,7 @@ Gold:          #ffd700
 
 ### Typography
 
-- **Headlines & Numbers:** JetBrains Mono (bold, all-caps for numbers)
-- **Body:** Inter
+- **Headlines, body, HUD, numbers:** JetBrains Mono (`font-sans`, `font-mono`, `font-hero-serif` share `--font-jetbrains-mono`)
 
 ### Navigation
 
@@ -609,6 +615,7 @@ Gold:          #ffd700
 - **shadcn/ui** for base components (buttons, inputs, dialogs, etc.)
 - **Radix UI** primitives for accessibility
 - Custom components for Grail-specific UI (trade cards, loadout grid, target cards)
+- **Typography:** JetBrains Mono sitewide (Next.js `layout.tsx` loads `--font-jetbrains-mono`; `font-sans` and `font-mono` both resolve to it). See `.agents/skills/frontend-design/SKILL.md` for aesthetic guidelines on net-new UI.
 
 ### AI Agents & Skills
 
@@ -618,6 +625,7 @@ The following agents and skills are configured in `.agents/` to assist developme
 | Skill | Purpose | Trigger |
 |-------|---------|---------|
 | `shadcn` | Manage shadcn components - add, search, fix, debug, style UI | Working with shadcn/ui, component registries, components.json |
+| `frontend-design` | Distinctive UI direction, typography, motion, composition; avoid generic “AI default” aesthetics | New pages, marketing surfaces, visual polish, component styling passes |
 
 **Agents:**
 | Agent | Purpose | When to Use |
@@ -906,7 +914,7 @@ Google OAuth credentials (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`) are config
 | Steam integration | Static item database scraped from csgostash.com, no live API                                                                                                |
 | BitSkins pricing API | Live pricing provider migrated from API v1 to API v2                                                                                                                         |
 | Marketplace links | Auto-generated from skin name + user custom overrides                                                                                                       |
-| Headline font     | JetBrains Mono (replaced Stratum2)                                                                                                                          |
+| Headline font     | JetBrains Mono (default UI + `font-hero-serif`; replaced Stratum2; DM Sans/Serif removed from layout)                                                         |
 | Navigation style  | Horizontal top tabs + Home Dashboard at `/`                                                                                                                 |
 | Weapon slots      | Full CS2 weapon roster (all pistols, rifles, SMGs, heavy, gear)                                                                                             |
 | Cross-pillar      | Sniper → Flip (acquired prompt) and Canvas → Sniper (empty slot action)                                                                                    |
@@ -956,6 +964,7 @@ Google OAuth credentials (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`) are config
 | 2026-03-17 | Renamed to "Grail", locked all decisions                   |
 | 2026-03-17 | Added 5-day sprint plan, updated tech stack                |
 | 2026-03-17 | Typography: JetBrains Mono for headlines, removed Stratum2 |
+| 2026-03-21 | Typography: JetBrains Mono sitewide via `--font-jetbrains-mono` (`font-sans` / `font-mono` / `font-hero-serif`; DM Sans / DM Serif removed from layout) |
 | 2026-03-17 | Added Navigation section (horizontal top tabs)             |
 | 2026-03-17 | Added AI Agents & Skills section, imported 9 agents        |
 | 2026-03-17 | Spec vetting: Fixed Next.js 14→16, added INSERT RLS policy, updated_at triggers, profile auto-creation trigger |
@@ -975,3 +984,20 @@ Google OAuth credentials (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`) are config
 | 2026-03-18 | Market v2: clarified market-first routes (`/`, `/market`, `/market/[id]`), moved dashboard to `/dashboard`, and specified Marketplace v2 filters/cards/detail requirements |
 | 2026-03-18 | Launch scope: added Live Pricing (multi-market pricing + history + trends), plus pricing time-series tables (`market_price_snapshots`, `market_price_candles`) |
 | 2026-03-19 | Market board refinement: `/market` now mirrors key BitSkins strengths with denser full-width listing grid, market notice strip, and right-panel listing toolbar (sort + compact/comfortable density), while keeping capability-aware filters for unsupported listing metadata |
+| 2026-03-20 | Landing (`/`): hero aligned to Figma Tickets frame — DM Serif Text headline (“The fastest way from **target** to **trade**.” with accent `#c438f3`), primary CTAs **Browse Market** + **Create Watchlist** (auth-gated); Trending/Tools cards use Figma-style `#141414` surfaces + 1px hairline ring in dark mode |
+| 2026-03-21 | Landing hero dark `lg+`: Figma branch Tickets node `8646:30422` — `max-w-[1600px]` + `bg-[#080808]`; layer order: right art (`hero-section-right.png`) `right-0` / `max-w-[937.5px]` (~58.6% w), then left mask `M0 0H936L662 599.5L0 600V0Z`, then diagonal `#471865` (centered with `left-[calc(50%+0.06px)] top-[calc(50%-0.05px)]` + `-translate-x-1/2 -translate-y-1/2`); copy `(40, 138)`; headline `tracking-[0.02597em]`; mobile/light stacked uses same PNG + `HeroPrimary`; rasters `unoptimized` |
+| 2026-03-21 | App shell: edge-to-edge layout sitewide — page `main` is not globally capped; `MainContentWidth` uses `max-w-[1600px] mx-auto` except on `/market` (listings); `TopTabs` inner row always uses `max-w-[1600px] mx-auto` (including listings); `html`/`body`/`#main` use `min-w-0 w-full`; horizontal padding `px-10` (40px); login form card keeps `max-w-md` for readability |
+| 2026-03-21 | Landing (`/`) only: content wrapped in `max-w-[1600px] mx-auto` (Figma hero width; not full viewport width); hero dark row fills that band (no nested 1600 cap) |
+| 2026-03-21 | `TopTabs` inner row uses `max-w-[1600px] mx-auto` on **all** routes (including `/market` listings); full-width bar background everywhere |
+| 2026-03-21 | **Layout:** `#main` wraps route output in `MainContentWidth` — `max-w-[1600px] mx-auto` on all routes **except** `/market` (listings grid only); `/market/[id]` and other routes use the cap; nav stays 1600 on listings while main is full width |
+| 2026-03-21 | Layout refinement: 1600px cap restored for `/market/[id]` (skin detail); only `/market` listings main content is full width; `TopTabs` stays capped at 1600 on listings |
+| 2026-03-21 | **`MainContentWidth`** is a **client** component using `usePathname()` so the `/market` vs capped-route max-width updates on SPA navigation; `headers().get("x-pathname")` in the root layout can stay stale because the layout shell may not re-run on every client navigation |
+| 2026-03-21 | **Skin detail (`/market/[id]`):** visiting the page loads catalog first, then client-side fetches `/api/pricing/snapshot` + `/api/pricing/history` for that item’s `market_hash_name` (multi-market fan-out is not run on `/market` listing). |
+| 2026-03-21 | **Live pricing — CS.MONEY:** `/api/pricing/snapshot` includes **CS.MONEY** (`csmoney`) using the public `GET https://cs.money/2.0/market/sell-orders` feed (Market buy listings), with HTML fallback to `https://cs.money/market/buy/?search=...` when JSON is unavailable (e.g. bot protection). |
+| 2026-03-21 | **CS.MONEY snapshot parsing:** floats, 5+ digit cent integers, and structured fields when the JSON feed is available. |
+| 2026-03-21 | **Skin detail (`/market/[id]`) — Live pricing UI:** Fixed set of **seven** markets in order: Steam, Skinport, CSFloat, BitSkins, DMarket, Waxpeer, CS.MONEY — each chip shows logo + lowercase name; **Visit** links to the marketplace search/listing when live price is unavailable; separate **Buy on** section removed (discovery is via Live pricing). |
+| 2026-03-21 | **Skin detail — Market price history:** Demo multi-line chart with deterministic dummy USD series per market (730d), time filters **1W / 1M / 6M / 1Y / All**, and per-market checkboxes to show/hide lines; real `/api/pricing/history` fetch removed from this page until wired to the chart. |
+| 2026-03-21 | **`MainContentWidth`:** client component with `usePathname()` — `max-w-[1600px] mx-auto` on all routes **except** `/market` (listings use `max-w-none` full-width main column); `/market/[id]` and other routes stay capped; aligns with `TopTabs` inner row where capped. |
+| 2026-03-22 | **`/market` filters:** Keyword search matches name, weapon, rarity, and id; item-type includes **Other** (stickers/containers/etc.) and a **Weapon** multi-select; sticker/charm terms filter by name substring; price band / sort-by-price / market-items-only use merged `market_price_snapshots` USD rows when the catalog is served from Supabase; rank fields are disabled in catalog mode; Utility (view mode, Steam ID placeholder) is exposed in the filter panel. |
+| 2026-03-22 | **Price Empire API constraint:** 100 **total** calls (not per day) before subscription required. Strategy: one-time bulk seed via `/v4/paid/items/prices` with multi-source params; maximize items per call; persist to `market_price_snapshots` and `market_price_candles`; never use for on-demand fetches; post-seed rely on DB cache + other free providers (Steam, Skinport, etc.). |
+| 2026-03-22 | **Routes + auth doc sync:** § Route Architecture updated for market-first `/`, `/market*`, `/dashboard` HUD, `/trade-links` ↔ `/float-flip`, `/watchlist` ↔ `/sniper`, middleware session refresh + public path list + `AuthGate` pattern (no blanket redirect); RLS tables listed for pillar data; Command Center explicitly at `/dashboard`. |

@@ -1,8 +1,8 @@
 ## 50 — Project Progress
 
 ### Overall Status
-- **Phase:** Early Day 1 of 5-day MVP sprint.
-- **Health:** Green — spec is comprehensive, monorepo scaffolded, no blockers in codebase.
+- **Phase:** Mid-sprint — market shell, catalog, live pricing pipelines, and Supabase-backed pillars are in progress; `SPEC.md` is canonical.
+- **Health:** Green — active development; some surfaces (e.g. `/dashboard`) may still use prototype store until fully migrated.
 
 ### Completed Work
 - [x] Product specification (`SPEC.md`) written, vetted 3 times, and locked.
@@ -28,14 +28,15 @@
 ### Milestone Progress
 | Milestone | Status | Notes |
 |-----------|--------|-------|
-| Day 1: Foundation | In Progress | Monorepo + UI package done; Supabase, auth, layout, dashboard remaining |
-| Day 2: Trades | Not Started | |
-| Day 3: Loadouts | Not Started | |
-| Day 4: Watchlist | Not Started | |
-| Day 5: Polish + Deploy | Not Started | |
+| Day 1: Foundation | In Progress | Monorepo, UI, Supabase schema, auth callback, middleware, market routes, shell layout |
+| Day 2: Trades | In Progress | Trades CRUD via Supabase (`/float-flip` / `/trade-links`); metrics/CSV |
+| Day 3: Loadouts | In Progress | CT/T grid, public links, Supabase-only loadouts (no demo seed) |
+| Day 4: Watchlist | In Progress | `/sniper` + `/watchlist` alias, watchlists + targets + alerts |
+| Day 5: Polish + Deploy | Not Started | Hardening, Vercel env validation |
 
 ### Known Issues / Bugs
-- None tracked yet at this stage.
+- `npm run typecheck` may fail in `@workspace/ui` (Phosphor exports) — unrelated to app routes; fix tracked separately.
+- Dashboard may still use `useDemoStore` until wired to Supabase aggregates.
 
 ### Backlog (Full Sprint)
 - **Day 1 remaining:** Base layout, navigation.

@@ -56,15 +56,16 @@ export function AuthGate({
 
   // While we’re determining auth status, show a minimal card instead of content.
   if (signedIn === null || !signedIn) {
+    const nextTarget = typeof window !== "undefined" ? `${window.location.pathname}${window.location.search}` : "/"
     return (
-      <Card className="mx-auto max-w-2xl border-warning/30 bg-warning/10">
+      <Card className="w-full max-w-none border-warning/30 bg-warning/10">
         <CardHeader className="py-4">
           <CardTitle className="font-mono text-sm">{title}</CardTitle>
           <CardDescription className="text-xs text-text-muted">{subtitle}</CardDescription>
         </CardHeader>
         <CardContent className="pt-0">
           <Button asChild variant="secondary" className="h-8 rounded-none font-mono text-xs tracking-wide">
-            <Link href="/login">{loginText}</Link>
+            <Link href={`/login?next=${encodeURIComponent(nextTarget)}`}>{loginText}</Link>
           </Button>
         </CardContent>
       </Card>

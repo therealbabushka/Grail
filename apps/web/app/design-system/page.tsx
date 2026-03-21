@@ -17,7 +17,7 @@ function Swatch({ name, className }: { name: string; className: string }) {
   return (
     <div className="flex flex-col items-center gap-2">
       <div className={`h-12 w-12 rounded-md border border-border ${className}`} />
-      <span className="text-center text-[10px] text-text-secondary">{name}</span>
+      <span className="text-center text-[12px] text-text-secondary">{name}</span>
     </div>
   )
 }
@@ -36,9 +36,9 @@ function RarityChip({ name, colorClass, glowColor }: { name: string; colorClass:
 
 export default function DesignSystemPage() {
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen w-full min-w-0 bg-background text-foreground">
       {/* Navigation Demo */}
-      <nav className="sticky top-0 z-50 flex items-center gap-6 border-b border-border bg-background/80 px-6 py-3 backdrop-blur-sm">
+      <nav className="sticky top-0 z-50 flex w-full items-center gap-6 border-b border-border bg-background/80 px-10 py-3 backdrop-blur-sm">
         <span className="font-mono text-lg font-bold tracking-tight text-primary">GRAIL</span>
         <div className="flex items-center gap-1">
           <NavTab label="Home" active={false} icon />
@@ -48,7 +48,7 @@ export default function DesignSystemPage() {
         </div>
       </nav>
 
-      <div className="mx-auto max-w-5xl space-y-12 px-6 py-10">
+      <div className="w-full space-y-12 px-10 py-10">
         {/* Hero Metrics Demo */}
         <Section title="Hero Metrics">
           <div className="flex items-end gap-8">
@@ -68,11 +68,11 @@ export default function DesignSystemPage() {
             </div>
             <div className="mb-1 flex gap-4">
               <div>
-                <p className="text-[10px] uppercase tracking-wider text-text-secondary">Win Rate</p>
+                <p className="text-[12px] uppercase tracking-wider text-text-secondary">Win Rate</p>
                 <p className="font-mono text-lg font-bold text-profit">74%</p>
               </div>
               <div>
-                <p className="text-[10px] uppercase tracking-wider text-text-secondary">ROI</p>
+                <p className="text-[12px] uppercase tracking-wider text-text-secondary">ROI</p>
                 <p className="font-mono text-lg font-bold text-profit">+186%</p>
               </div>
             </div>
@@ -113,15 +113,15 @@ export default function DesignSystemPage() {
           <div className="flex flex-wrap gap-6">
             <div className="flex flex-col gap-1">
               <span className="text-sm text-foreground">Primary Text</span>
-              <span className="text-[10px] text-text-secondary">#ffffff</span>
+              <span className="text-[12px] text-text-secondary">#ffffff</span>
             </div>
             <div className="flex flex-col gap-1">
               <span className="text-sm text-text-secondary">Secondary Text</span>
-              <span className="text-[10px] text-text-secondary">#888888</span>
+              <span className="text-[12px] text-text-secondary">#888888</span>
             </div>
             <div className="flex flex-col gap-1">
               <span className="text-sm text-text-muted">Muted Text</span>
-              <span className="text-[10px] text-text-secondary">#555555</span>
+              <span className="text-[12px] text-text-secondary">#555555</span>
             </div>
           </div>
         </Section>
@@ -154,19 +154,19 @@ export default function DesignSystemPage() {
         <Section title="Typography">
           <div className="space-y-6">
             <div>
-              <p className="mb-1 text-[10px] uppercase tracking-wider text-text-secondary">
-                JetBrains Mono — Headlines & Numbers
+              <p className="mb-1 text-[12px] uppercase tracking-wider text-text-secondary">
+                JetBrains Mono — Default UI (<code className="text-foreground">font-sans</code> /{" "}
+                <code className="text-foreground">font-mono</code> /{" "}
+                <code className="text-foreground">font-hero-serif</code>)
               </p>
               <h1 className="font-mono text-3xl font-bold">CAREER PROFIT</h1>
               <h2 className="font-mono text-2xl font-bold">+$12,847.50</h2>
               <h3 className="font-mono text-xl font-semibold">Trades Dashboard</h3>
               <p className="font-mono text-sm tabular-nums">0.0712 FN | 0.2543 FT | 0.7821 BS</p>
-            </div>
-            <div>
-              <p className="mb-1 text-[10px] uppercase tracking-wider text-text-secondary">
-                Inter/Geist — Body Text
+              <p className="font-hero-serif mt-4 text-3xl font-normal leading-tight tracking-wide text-foreground">
+                The fastest way from target to trade.
               </p>
-              <p className="text-base">
+              <p className="mt-4 text-base">
                 Track your CS2 skin trades with precision. Log every buy and sell, monitor float
                 values across wear conditions, and calculate your real profit margin.
               </p>
@@ -214,7 +214,7 @@ export default function DesignSystemPage() {
         <Section title="Status Badges">
           <div className="space-y-4">
             <div>
-              <p className="mb-2 text-[10px] uppercase tracking-wider text-text-secondary">
+              <p className="mb-2 text-[12px] uppercase tracking-wider text-text-secondary">
                 Trades
               </p>
               <div className="flex flex-wrap gap-2">
@@ -227,7 +227,7 @@ export default function DesignSystemPage() {
               </div>
             </div>
             <div>
-              <p className="mb-2 text-[10px] uppercase tracking-wider text-text-secondary">
+              <p className="mb-2 text-[12px] uppercase tracking-wider text-text-secondary">
                 Watchlist
               </p>
               <div className="flex flex-wrap gap-2">
@@ -265,7 +265,7 @@ export default function DesignSystemPage() {
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-text-secondary">Float Value</label>
               <Input type="number" placeholder="0.0000" step="0.0001" min="0" max="1" />
-              <p className="text-[10px] text-text-muted">
+              <p className="text-[12px] text-text-muted">
                 Enter a value between 0.0000 and 1.0000
               </p>
             </div>
@@ -394,44 +394,44 @@ function TradeCard({
   variant: string
 }) {
   return (
-    <div className="group rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/30 hover:bg-surface-hover">
+    <div className="group rounded-none border border-border bg-card p-4 transition-colors hover:border-primary/30 hover:bg-surface-hover">
       <div className="mb-3 flex items-start justify-between">
         <div>
           <h3 className="text-sm font-medium">{name}</h3>
           <div className="mt-1 flex items-center gap-2">
-            <span className="rounded bg-surface px-1.5 py-0.5 font-mono text-[10px] text-text-secondary">
+            <span className="rounded bg-surface px-1.5 py-0.5 font-mono text-[12px] text-text-secondary">
               {wear}
             </span>
-            <span className="font-mono text-[10px] text-text-muted">{floatVal}</span>
+            <span className="font-mono text-[12px] text-text-muted">{floatVal}</span>
             {variant !== "Normal" && (
-              <span className="text-[10px] font-medium text-warning">{variant}</span>
+              <span className="text-[12px] font-medium text-warning">{variant}</span>
             )}
           </div>
         </div>
         {sell ? (
-          <span className="inline-flex items-center rounded-full bg-accent-muted px-2 py-0.5 text-[10px] font-medium text-profit">
+          <span className="inline-flex items-center rounded-full bg-accent-muted px-2 py-0.5 text-[12px] font-medium text-profit">
             Sold
           </span>
         ) : (
-          <span className="inline-flex items-center rounded-full bg-info/15 px-2 py-0.5 text-[10px] font-medium text-info">
+          <span className="inline-flex items-center rounded-full bg-info/15 px-2 py-0.5 text-[12px] font-medium text-info">
             Open
           </span>
         )}
       </div>
       <div className="flex items-end justify-between">
         <div className="space-y-0.5">
-          <p className="text-[10px] text-text-muted">Buy</p>
+          <p className="text-[12px] text-text-muted">Buy</p>
           <p className="font-mono text-xs">{buy}</p>
         </div>
         {sell && (
           <div className="space-y-0.5 text-right">
-            <p className="text-[10px] text-text-muted">Sell</p>
+            <p className="text-[12px] text-text-muted">Sell</p>
             <p className="font-mono text-xs">{sell}</p>
           </div>
         )}
         {profit && (
           <div className="space-y-0.5 text-right">
-            <p className="text-[10px] text-text-muted">P&L</p>
+            <p className="text-[12px] text-text-muted">P&L</p>
             <p className={`font-mono text-sm font-bold ${profitPositive ? "text-profit" : "text-loss"}`}>
               {profit}
             </p>

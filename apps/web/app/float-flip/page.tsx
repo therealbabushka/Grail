@@ -21,35 +21,63 @@ import {
 import { Input } from "@workspace/ui/components/input"
 
 import type { Trade, Wear, Variant, Currency, TradeStatus } from "@/lib/demo-seed"
-import { demoActions, computeTradeStats, formatMoney, useDemoStore } from "@/lib/prototype-store"
+import { computeTradeStats, formatMoney } from "@/lib/prototype-store"
 
 import { AuthGate } from "@/components/auth-gate"
+
+import { createClient as createBrowserClient } from "@/lib/supabase/browser"
 
 const WEARS: Wear[] = ["FN", "MW", "FT", "WW", "BS"]
 const VARIANTS: Variant[] = ["none", "stattrak", "souvenir"]
 const CURRENCIES: Currency[] = ["USD", "EUR", "GBP", "CNY"]
 
-function emptyTrade(): Omit<Trade, "id"> {
+function parseWear(value: string | null | undefined): Wear {
+  if (value && WEARS.includes(value as Wear)) return value as Wear
+  return "FT"
+}
+
+function parseVariant(value: string | null | undefined): Variant {
+  if (value && VARIANTS.includes(value as Variant)) return value as Variant
+  return "none"
+}
+
+function emptyTrade(displayCurrency: Currency): Omit<Trade, "id"> {
   return {
     skinName: "",
     wear: "FT",
     variant: "none",
     buyPrice: 0,
     status: "open",
-    currency: "USD",
+    currency: displayCurrency,
     buyDate: new Date().toISOString().slice(0, 10),
   }
 }
 
-function id() {
-  return `trade_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`
+function newId() {
+  const c = globalThis.crypto
+  if (c && "randomUUID" in c && typeof c.randomUUID === "function") return c.randomUUID()
+  if (!c || typeof c.getRandomValues !== "function") return `${Date.now()}`
+  // RFC 4122 v4 fallback
+  const bytes = new Uint8Array(16)
+  c.getRandomValues(bytes)
+  bytes[6] = ((bytes[6] ?? 0) & 0x0f) | 0x40
+  bytes[8] = ((bytes[8] ?? 0) & 0x3f) | 0x80
+  const hex = Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("")
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
 }
 
 export default function FloatFlipPage() {
-  const { profile, trades, ui } = useDemoStore()
-  const actions = useMemo(() => demoActions(), [])
+  const supabase = useMemo(() => createBrowserClient(), [])
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
+
+  const [currency, setCurrency] = useState<Currency>("USD")
+  const [trades, setTrades] = useState<Trade[]>([])
+
   const stats = computeTradeStats(trades)
-  const currency = profile.displayCurrency
 
   const openTrades = useMemo(() => trades.filter((t) => t.status === "open"), [trades])
   const [openPrices, setOpenPrices] = useState<Record<string, number | null>>({})
@@ -66,11 +94,101 @@ export default function FloatFlipPage() {
   const [search, setSearch] = useState("")
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [form, setForm] = useState(emptyTrade())
+  const [form, setForm] = useState(emptyTrade(currency))
   const [deleteTradeId, setDeleteTradeId] = useState<string | null>(null)
 
-  const draftFromTarget = ui.draftTradeFromTarget
-  const [marketPrefill, setMarketPrefill] = useState<{ skin?: string; weapon?: string } | null>(null)
+  const [marketPrefill, setMarketPrefill] = useState<{
+    skin?: string
+    weapon?: string
+    wear?: Wear
+    variant?: Variant
+    buyPrice?: number
+    currency?: Currency
+    floatValue?: number
+    notes?: string
+    buyDate?: string
+  } | null>(null)
+
+  const refreshTrades = useCallback(
+    async (overrideUserId?: string) => {
+      if (!supabase) return
+      const effectiveUserId = overrideUserId ?? userId
+      if (!effectiveUserId) return
+
+      const { data, error } = await supabase
+      .from("trades")
+      .select("id, skin_name, wear, variant, float_value, image_url, buy_price, sell_price, status, currency, buy_date, sell_date, notes")
+      .eq("user_id", effectiveUserId)
+      .order("buy_date", { ascending: false })
+
+    if (error) throw error
+
+      const mapped: Trade[] = (data ?? []).map((r) => ({
+        id: r.id,
+        skinName: r.skin_name,
+        weaponType: undefined,
+        wear: parseWear(r.wear),
+        variant: parseVariant(r.variant),
+        floatValue: typeof r.float_value === "number" ? r.float_value : undefined,
+        imageUrl: r.image_url ?? undefined,
+        buyPrice: Number(r.buy_price),
+        sellPrice: typeof r.sell_price === "number" ? r.sell_price : undefined,
+        status: r.status as TradeStatus,
+        currency: r.currency as Currency,
+        buyDate: r.buy_date,
+        sellDate: typeof r.sell_date === "string" ? r.sell_date : undefined,
+        notes: r.notes ?? undefined,
+      }))
+
+      setTrades(mapped)
+    },
+    [supabase, userId],
+  )
+
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      if (!supabase) {
+        setLoadError("Supabase is not configured.")
+        setIsLoading(false)
+        return
+      }
+
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+
+        if (!user) {
+          setLoadError("Sign in required.")
+          setIsLoading(false)
+          return
+        }
+
+        setUserId(user.id)
+
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("currency_preference")
+          .eq("id", user.id)
+          .maybeSingle()
+
+        if (!cancelled) setCurrency((prof?.currency_preference as Currency) ?? "USD")
+
+        await refreshTrades(user.id)
+      } catch (e) {
+        if (cancelled) return
+        setLoadError(e instanceof Error ? e.message : "Failed to load trades.")
+      } finally {
+        if (!cancelled) setIsLoading(false)
+      }
+    }
+
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [supabase, refreshTrades])
 
   const filteredTrades = trades.filter((t) => {
     if (statusFilter === "open" && t.status !== "open") return false
@@ -83,28 +201,10 @@ export default function FloatFlipPage() {
   })
 
   const openCreate = useCallback(() => {
-    if (draftFromTarget) {
-      setForm({
-        skinName: draftFromTarget.skinName,
-        weaponType: draftFromTarget.weaponType,
-        wear: (draftFromTarget.wear ?? "FT") as Wear,
-        variant: draftFromTarget.variant,
-        floatValue: draftFromTarget.maxFloat,
-        imageUrl: draftFromTarget.imageUrl,
-        buyPrice: draftFromTarget.acquiredPrice ?? draftFromTarget.targetPrice,
-        sellPrice: undefined,
-        status: "open",
-        currency: draftFromTarget.currency,
-        buyDate: new Date().toISOString().slice(0, 10),
-        notes: draftFromTarget.notes,
-      })
-      actions.consumeTradeDraft()
-    } else {
-      setForm(emptyTrade())
-    }
+    setForm(emptyTrade(currency))
     setEditingId(null)
     setDialogOpen(true)
-  }, [draftFromTarget, actions])
+  }, [currency])
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -112,7 +212,39 @@ export default function FloatFlipPage() {
     const skin = params.get("skin") ?? undefined
     const weapon = params.get("weapon") ?? undefined
     if (!skin) return
-    setMarketPrefill({ skin, weapon })
+
+    const wearParam = params.get("wear") ?? undefined
+    const wear = wearParam && WEARS.includes(wearParam as Wear) ? (wearParam as Wear) : undefined
+
+    const variantParam = params.get("variant") ?? undefined
+    const variant = variantParam && VARIANTS.includes(variantParam as Variant) ? (variantParam as Variant) : undefined
+
+    const buyPriceRaw = params.get("buyPrice") ?? undefined
+    const buyPrice = buyPriceRaw ? Number(buyPriceRaw) : undefined
+
+    const currencyParam = params.get("currency") ?? undefined
+    const prefillCurrency = currencyParam && CURRENCIES.includes(currencyParam as Currency) ? (currencyParam as Currency) : undefined
+
+    const floatValueRaw = params.get("floatValue") ?? undefined
+    const floatValue = floatValueRaw ? Number(floatValueRaw) : undefined
+
+    const buyDateParam = params.get("buyDate") ?? undefined
+    const buyDate = buyDateParam && buyDateParam.trim() ? buyDateParam : undefined
+
+    const notesParam = params.get("notes") ?? undefined
+    const notes = notesParam && notesParam.trim() ? notesParam : undefined
+
+    setMarketPrefill({
+      skin,
+      weapon,
+      wear,
+      variant,
+      buyPrice: Number.isFinite(buyPrice as number) ? (buyPrice as number) : undefined,
+      currency: prefillCurrency,
+      floatValue: Number.isFinite(floatValue as number) ? (floatValue as number) : undefined,
+      buyDate,
+      notes,
+    })
   }, [])
 
   useEffect(() => {
@@ -120,17 +252,20 @@ export default function FloatFlipPage() {
     setForm({
       skinName: marketPrefill.skin,
       weaponType: marketPrefill.weapon || undefined,
-      wear: "FT",
-      variant: "none",
-      buyPrice: 0,
+      wear: marketPrefill.wear ?? "FT",
+      variant: marketPrefill.variant ?? "none",
+      buyPrice: marketPrefill.buyPrice ?? 0,
       status: "open",
-      currency: "USD",
-      buyDate: new Date().toISOString().slice(0, 10),
+      currency: marketPrefill.currency ?? currency,
+      floatValue: marketPrefill.floatValue,
+      buyDate: marketPrefill.buyDate ?? new Date().toISOString().slice(0, 10),
+      imageUrl: undefined,
+      notes: marketPrefill.notes,
     })
     setEditingId(null)
     setDialogOpen(true)
-    // Leave the query in place (demo).
-  }, [marketPrefill])
+    // Leave the query in place for shareable prefill.
+  }, [marketPrefill, currency])
 
   useEffect(() => {
     let cancelled = false
@@ -195,9 +330,14 @@ export default function FloatFlipPage() {
   const handleSubmit = () => {
     if (!canSubmit) return
     const sellPrice = form.status === "sold" ? form.sellPrice ?? 0 : undefined
-    const sellDate = form.status === "sold" ? form.sellDate ?? form.buyDate : undefined
+    const sellDate =
+      form.status === "sold"
+        ? form.sellDate && form.sellDate.trim()
+          ? form.sellDate
+          : form.buyDate
+        : undefined
     const trade: Trade = {
-      id: editingId ?? id(),
+      id: editingId ?? newId(),
       skinName: formSkinName || "Unknown",
       weaponType: form.weaponType,
       wear: form.wear,
@@ -212,16 +352,55 @@ export default function FloatFlipPage() {
       sellDate,
       notes: form.notes?.trim() || undefined,
     }
-    actions.upsertTrade(trade)
-    setDialogOpen(false)
-    setForm(emptyTrade())
-    setEditingId(null)
+
+    ;(async () => {
+      if (!supabase) return
+      if (!userId) return
+
+      try {
+        await supabase
+          .from("trades")
+          .upsert({
+            id: trade.id,
+            user_id: userId,
+            skin_name: trade.skinName,
+            wear: trade.wear,
+            variant: trade.variant,
+            float_value: trade.floatValue ?? null,
+            image_url: trade.imageUrl ?? null,
+            buy_price: trade.buyPrice,
+            sell_price: trade.status === "sold" ? trade.sellPrice ?? null : null,
+            status: trade.status,
+            currency: trade.currency,
+            buy_date: trade.buyDate,
+            sell_date: trade.status === "sold" ? trade.sellDate ?? trade.buyDate : null,
+            notes: trade.notes ?? null,
+          })
+
+        await refreshTrades()
+        setDialogOpen(false)
+        setForm(emptyTrade(currency))
+        setEditingId(null)
+      } catch (e) {
+        // For now, keep UX consistent: do not close if save fails.
+        setLoadError(e instanceof Error ? e.message : "Failed to save trade.")
+      }
+    })()
   }
 
   const confirmDelete = () => {
     if (!deleteTradeId) return
-    actions.deleteTrade(deleteTradeId)
-    setDeleteTradeId(null)
+    ;(async () => {
+      if (!supabase) return
+      if (!userId) return
+      try {
+        await supabase.from("trades").delete().eq("id", deleteTradeId).eq("user_id", userId)
+        await refreshTrades()
+        setDeleteTradeId(null)
+      } catch (e) {
+        setLoadError(e instanceof Error ? e.message : "Failed to delete trade.")
+      }
+    })()
   }
 
   const exportCsv = () => {
@@ -271,10 +450,36 @@ export default function FloatFlipPage() {
     URL.revokeObjectURL(url)
   }
 
+  if (isLoading) {
+    return (
+      <AuthGate subtitle="Sign in to view and manage your saved trades.">
+        <main className="min-h-screen w-full min-w-0 bg-background px-10 py-10 text-foreground">
+          <div className="w-full space-y-6">
+            <p className="text-sm text-text-muted">Loading saved trades…</p>
+          </div>
+        </main>
+      </AuthGate>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <AuthGate subtitle="Sign in to view and manage your saved trades.">
+        <main className="min-h-screen w-full min-w-0 bg-background px-10 py-10 text-foreground">
+          <div className="w-full space-y-6">
+            <Card className="border-destructive/40">
+              <CardContent className="py-6 text-sm text-destructive">Failed to load: {loadError}</CardContent>
+            </Card>
+          </div>
+        </main>
+      </AuthGate>
+    )
+  }
+
   return (
     <AuthGate subtitle="Sign in to view and manage your saved trades.">
-      <main className="min-h-screen bg-background px-6 py-10 text-foreground">
-      <div className="mx-auto max-w-6xl space-y-6">
+      <main className="min-h-screen w-full min-w-0 bg-background px-10 py-10 text-foreground">
+      <div className="w-full space-y-6">
         <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <h1 className="font-mono text-2xl font-bold tracking-tight">
@@ -294,24 +499,11 @@ export default function FloatFlipPage() {
           </div>
         </header>
 
-        {draftFromTarget && (
-          <Card className="border-info/50 bg-info/5">
-            <CardContent className="flex items-center justify-between py-3">
-              <p className="text-xs text-foreground">
-                Trade draft from Watchlist: <span className="font-mono">{draftFromTarget.skinName}</span>
-              </p>
-              <Button size="sm" variant="outline" onClick={openCreate}>
-                Use draft
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
         {/* Metrics */}
         <section className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription className="text-[10px] uppercase tracking-wider">
+              <CardDescription className="text-[12px] uppercase tracking-wider">
                 Career profit
               </CardDescription>
               <CardTitle
@@ -326,7 +518,7 @@ export default function FloatFlipPage() {
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription className="text-[10px] uppercase tracking-wider">
+              <CardDescription className="text-[12px] uppercase tracking-wider">
                 Capital at risk
               </CardDescription>
               <CardTitle className="font-mono text-2xl text-foreground">
@@ -336,7 +528,7 @@ export default function FloatFlipPage() {
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription className="text-[10px] uppercase tracking-wider">
+              <CardDescription className="text-[12px] uppercase tracking-wider">
                 Win rate
               </CardDescription>
               <CardTitle className="font-mono text-2xl text-foreground">
@@ -346,7 +538,7 @@ export default function FloatFlipPage() {
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription className="text-[10px] uppercase tracking-wider">
+              <CardDescription className="text-[12px] uppercase tracking-wider">
                 Avg ROI
               </CardDescription>
               <CardTitle className="font-mono text-2xl text-foreground">
@@ -371,7 +563,7 @@ export default function FloatFlipPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead>
-                    <tr className="border-b border-border text-[10px] uppercase tracking-wider text-text-secondary">
+                    <tr className="border-b border-border text-[12px] uppercase tracking-wider text-text-secondary">
                       <th className="pb-2 pr-4 font-mono">Skin</th>
                       <th className="pb-2 pr-4 font-mono">Buy</th>
                       <th className="pb-2 pr-4 font-mono">Current</th>
@@ -430,7 +622,7 @@ export default function FloatFlipPage() {
                 key={s}
                 variant={statusFilter === s ? "default" : "ghost"}
                 size="sm"
-                className="font-mono text-[11px]"
+                className="font-mono text-[12px]"
                 onClick={() => setStatusFilter(s)}
               >
                 {s}
@@ -456,7 +648,7 @@ export default function FloatFlipPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead>
-                    <tr className="border-b border-border text-[10px] uppercase tracking-wider text-text-secondary">
+                    <tr className="border-b border-border text-[12px] uppercase tracking-wider text-text-secondary">
                       <th className="pb-2 pr-4 font-mono">Skin</th>
                       <th className="pb-2 pr-4 font-mono">Wear</th>
                       <th className="pb-2 pr-4 font-mono">Variant</th>
@@ -552,7 +744,7 @@ export default function FloatFlipPage() {
           </DialogHeader>
           <div className="grid gap-3 text-xs">
             <div>
-              <label className="mb-1 block font-mono text-[10px] uppercase text-text-secondary">
+              <label className="mb-1 block font-mono text-[12px] uppercase text-text-secondary">
                 Skin name
               </label>
               <Input
@@ -562,12 +754,12 @@ export default function FloatFlipPage() {
                 className="font-mono"
               />
               {!formSkinName && (
-                <p className="mt-1 text-[11px] text-danger">Skin name is required.</p>
+                <p className="mt-1 text-[12px] text-danger">Skin name is required.</p>
               )}
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="mb-1 block font-mono text-[10px] uppercase text-text-secondary">
+                <label className="mb-1 block font-mono text-[12px] uppercase text-text-secondary">
                   Wear
                 </label>
                 <select
@@ -583,7 +775,7 @@ export default function FloatFlipPage() {
                 </select>
               </div>
               <div>
-                <label className="mb-1 block font-mono text-[10px] uppercase text-text-secondary">
+                <label className="mb-1 block font-mono text-[12px] uppercase text-text-secondary">
                   Variant
                 </label>
                 <select
@@ -601,7 +793,7 @@ export default function FloatFlipPage() {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="mb-1 block font-mono text-[10px] uppercase text-text-secondary">
+                <label className="mb-1 block font-mono text-[12px] uppercase text-text-secondary">
                   Float (optional)
                 </label>
                 <Input
@@ -619,11 +811,11 @@ export default function FloatFlipPage() {
                   className="font-mono tabular-nums"
                 />
                 {floatInvalid && (
-                  <p className="mt-1 text-[11px] text-danger">Float must be within 0.0000-1.0000.</p>
+                  <p className="mt-1 text-[12px] text-danger">Float must be within 0.0000-1.0000.</p>
                 )}
               </div>
               <div>
-                <label className="mb-1 block font-mono text-[10px] uppercase text-text-secondary">
+                <label className="mb-1 block font-mono text-[12px] uppercase text-text-secondary">
                   Currency
                 </label>
                 <select
@@ -641,7 +833,7 @@ export default function FloatFlipPage() {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="mb-1 block font-mono text-[10px] uppercase text-text-secondary">
+                <label className="mb-1 block font-mono text-[12px] uppercase text-text-secondary">
                   Buy price
                 </label>
                 <Input
@@ -655,11 +847,11 @@ export default function FloatFlipPage() {
                   className="font-mono tabular-nums"
                 />
                 {!buyPriceValid && (
-                  <p className="mt-1 text-[11px] text-danger">Buy price must be greater than 0.</p>
+                  <p className="mt-1 text-[12px] text-danger">Buy price must be greater than 0.</p>
                 )}
               </div>
               <div>
-                <label className="mb-1 block font-mono text-[10px] uppercase text-text-secondary">
+                <label className="mb-1 block font-mono text-[12px] uppercase text-text-secondary">
                   Sell price (if sold)
                 </label>
                 <Input
@@ -677,13 +869,13 @@ export default function FloatFlipPage() {
                   disabled={form.status === "open"}
                 />
                 {form.status === "sold" && !sellPriceValid && (
-                  <p className="mt-1 text-[11px] text-danger">Sell price is required when status is sold.</p>
+                  <p className="mt-1 text-[12px] text-danger">Sell price is required when status is sold.</p>
                 )}
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="mb-1 block font-mono text-[10px] uppercase text-text-secondary">
+                <label className="mb-1 block font-mono text-[12px] uppercase text-text-secondary">
                   Status
                 </label>
                 <select
@@ -694,7 +886,12 @@ export default function FloatFlipPage() {
                       ...f,
                       status: s,
                       sellPrice: s === "sold" ? f.sellPrice ?? f.buyPrice : undefined,
-                      sellDate: s === "sold" ? f.sellDate ?? f.buyDate : undefined,
+                      sellDate:
+                        s === "sold"
+                          ? f.sellDate && f.sellDate.trim()
+                            ? f.sellDate
+                            : f.buyDate
+                          : undefined,
                     }))
                   }}
                   className="h-8 w-full rounded-none border border-input bg-background px-2 font-mono text-xs"
@@ -704,35 +901,45 @@ export default function FloatFlipPage() {
                 </select>
               </div>
               <div>
-                <label className="mb-1 block font-mono text-[10px] uppercase text-text-secondary">
+                <label className="mb-1 block font-mono text-[12px] uppercase text-text-secondary">
                   Buy date
                 </label>
                 <Input
                   type="date"
                   value={form.buyDate}
-                  onChange={(e) => setForm((f) => ({ ...f, buyDate: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      buyDate: e.target.value && e.target.value.trim() ? e.target.value : f.buyDate,
+                    }))
+                  }
                   className="font-mono"
                 />
               </div>
             </div>
             {form.status === "sold" && (
               <div>
-                <label className="mb-1 block font-mono text-[10px] uppercase text-text-secondary">
+                <label className="mb-1 block font-mono text-[12px] uppercase text-text-secondary">
                   Sell date
                 </label>
                 <Input
                   type="date"
                   value={form.sellDate ?? form.buyDate}
-                  onChange={(e) => setForm((f) => ({ ...f, sellDate: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      sellDate: e.target.value && e.target.value.trim() ? e.target.value : undefined,
+                    }))
+                  }
                   className="font-mono"
                 />
                 {sellDateInvalid && (
-                  <p className="mt-1 text-[11px] text-danger">Sell date must be on or after buy date.</p>
+                  <p className="mt-1 text-[12px] text-danger">Sell date must be on or after buy date.</p>
                 )}
               </div>
             )}
             <div>
-              <label className="mb-1 block font-mono text-[10px] uppercase text-text-secondary">
+              <label className="mb-1 block font-mono text-[12px] uppercase text-text-secondary">
                 Notes (optional)
               </label>
               <Input
