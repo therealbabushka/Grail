@@ -7,7 +7,6 @@ import { usePathname, useRouter } from "next/navigation"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
 import { cn } from "@workspace/ui/lib/utils"
-import { ThemeToggle } from "@/components/theme-toggle"
 import { createClient } from "@/lib/supabase/browser"
 
 type Tab = {
@@ -274,7 +273,6 @@ export function TopTabs() {
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          <ThemeToggle className="text-foreground hover:bg-muted dark:text-[#e5e5e5] dark:hover:bg-white/5 dark:hover:text-[#fafafa]" />
           {signedIn ? (
             <Button
               variant="secondary"

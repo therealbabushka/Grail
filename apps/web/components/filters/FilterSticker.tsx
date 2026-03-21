@@ -55,8 +55,8 @@ function SlotSilhouette({
             tabIndex={0}
             className={
               selected.includes(s.id)
-                ? "cursor-pointer fill-primary/50 stroke-primary stroke-1"
-                : "cursor-pointer fill-transparent stroke-border stroke-1 hover:fill-muted/40"
+                ? "cursor-pointer fill-primary/50 stroke-primary stroke-[0.5]"
+                : "cursor-pointer fill-transparent stroke-border stroke-[0.5] hover:fill-muted/40"
             }
             onClick={() => onToggle(s.id)}
             onKeyDown={(e) => {

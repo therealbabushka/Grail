@@ -198,7 +198,7 @@ export default function HomePage() {
                 <path
                   d="M284.381 1.25L279.762 9.25L6.26205 608.25L2.26205 616.75"
                   stroke={HERO_DIVIDER_STROKE}
-                  strokeWidth={5}
+                  strokeWidth={0.5}
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />

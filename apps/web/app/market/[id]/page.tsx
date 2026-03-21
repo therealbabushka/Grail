@@ -619,7 +619,7 @@ function DummyPriceHistoryChart({ itemId }: { itemId: string }) {
         ) : effectiveData.length >= 2 ? (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={effectiveData} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
-              <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.35} />
+              <CartesianGrid vertical={false} stroke="var(--border)" strokeWidth={0.5} strokeOpacity={0.35} />
               <XAxis
                 dataKey="date"
                 axisLine={false}
@@ -639,7 +639,7 @@ function DummyPriceHistoryChart({ itemId }: { itemId: string }) {
                 className="text-[12px] fill-[var(--text-muted)]"
               />
               <Tooltip
-                cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
+                cursor={{ stroke: "var(--border)", strokeWidth: 0.5 }}
                 wrapperStyle={{ zIndex: 9999 }}
                 contentStyle={{
                   background: "var(--surface)",
@@ -662,7 +662,7 @@ function DummyPriceHistoryChart({ itemId }: { itemId: string }) {
                   dataKey={market}
                   name={marketChipLabel(market)}
                   stroke={MARKET_COLORS[market] ?? "#888888"}
-                  strokeWidth={2}
+                  strokeWidth={0.5}
                   dot={false}
                   activeDot={{ r: 4 }}
                   connectNulls
